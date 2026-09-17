@@ -26,6 +26,8 @@ function harness() {
         calls++;
         assert.equal(url.origin, 'https://api.twelvedata.com');
         assert.equal(url.searchParams.get('symbol'), SYMBOLS.join(','));
+        assert.equal(url.searchParams.get('interval'), '1min');
+        assert.equal(url.searchParams.get('timezone'), 'UTC');
         assert.equal(options.redirect, 'error');
         return Response.json(fixture());
       },
@@ -110,6 +112,34 @@ test('daily budget denial never contacts the provider', async () => {
   const result = await marketContext({ ...h.deps, storage: async c => c[0] === 'GET' ? null : -1 });
   assert.equal(result.reason, 'daily_budget');
   assert.equal(h.calls(), 0);
+});
+test('migration isolates daily snapshots without resetting the existing quota or cooldown', async () => {
+  const h = harness();
+  const commands = [];
+  const oldSnapshot = JSON.stringify({ fetchedAt: new Date(time).toISOString(), quotes: normalizeQuotes(fixture(), time) });
+  const result = await marketContext({ ...h.deps, storage: async command => {
+    commands.push(command);
+    if (command[0] === 'GET') return command[1].endsWith(':snapshot') ? oldSnapshot : null;
+    if (command[0] === 'EVAL') return 0; // Existing deployment's 20-minute reservation.
+    throw Error('must not write or reset quota');
+  } });
+  assert.equal(result.reason, 'cooldown');
+  assert.equal(result.fetchedAt, null);
+  assert.equal(h.calls(), 0);
+  assert.ok(commands[0][1].endsWith(':snapshot:1min'));
+  assert.match(commands[1][3], /^6emc:td:v1:[a-f0-9]{24}:cooldown$/);
+  assert.match(commands[1][4], /^6emc:td:v1:[a-f0-9]{24}:budget$/);
+});
+test('daily candle timestamps remain stale; recent one-minute candles enable strength', async () => {
+  const raw = fixture();
+  Object.values(raw).forEach(q => { q.timestamp = (time - 18 * 3600000) / 1000; });
+  const old = present({ fetchedAt: new Date(time).toISOString(), quotes: normalizeQuotes(raw, time) }, time);
+  assert.equal(old.strengths.USD, null);
+  assert.equal(old.quotes[0].status, 'stale');
+  Object.values(raw).forEach(q => { q.timestamp = (time - 60000) / 1000; });
+  const fresh = present({ fetchedAt: new Date(time).toISOString(), quotes: normalizeQuotes(raw, time) }, time);
+  assert.equal(fresh.strengths.USD.score, 50);
+  assert.equal(fresh.strengths.EUR.score, 100);
 });
 test('market route requires existing dashboard token and forbids shared HTTP caching', async () => {
   const old = process.env.TWELVE_DATA_API_KEY;

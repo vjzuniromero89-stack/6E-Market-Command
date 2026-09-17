@@ -4,7 +4,7 @@ import { marketContext, normalizeQuotes, present, strengths, SYMBOLS, REFRESH_MS
 import { GET } from '../app/api/market-context/route.js';
 
 const time = Date.parse('2026-09-17T12:00:00Z');
-const fixture = () => Object.fromEntries(SYMBOLS.map(symbol => [symbol, { symbol, close: '1.25', percent_change: '1', timestamp: time / 1000 }]));
+const fixture = () => Object.fromEntries(SYMBOLS.map(symbol => [symbol, { meta:{symbol, interval:'5min'}, status:'ok', values: Array.from({length:400}, (_,i)=>({datetime:new Date(time-(i+1)*300000).toISOString().slice(0,19).replace('T',' '),close:String(1.25-i*0.001)})) }]));
 function harness() {
   let clock = time, calls = 0, cooldown = 0, used = 0;
   const values = new Map(), commands = [];
@@ -26,7 +26,9 @@ function harness() {
         calls++;
         assert.equal(url.origin, 'https://api.twelvedata.com');
         assert.equal(url.searchParams.get('symbol'), SYMBOLS.join(','));
-        assert.equal(url.searchParams.get('interval'), '1min');
+        assert.equal(url.pathname, '/time_series');
+        assert.equal(url.searchParams.get('interval'), '5min');
+        assert.equal(url.searchParams.get('outputsize'), '400');
         assert.equal(url.searchParams.get('timezone'), 'UTC');
         assert.equal(options.redirect, 'error');
         return Response.json(fixture());
@@ -36,10 +38,10 @@ function harness() {
 }
 test('eight quotes are normalized; invalid, missing and mismatched symbols fail safely', () => {
   const raw = fixture();
-  raw['GBP/USD'].close = '';
-  raw['USD/JPY'].timestamp = time / 1000 + 120;
-  raw['AUD/USD'].percent_change = null;
-  raw['USD/CAD'].symbol = 'USD/CHF';
+  raw['GBP/USD'].values = [];
+  raw['USD/JPY'].meta.interval = '1day';
+  raw['AUD/USD'].values.forEach(q=>q.close=null);
+  raw['USD/CAD'].meta.symbol = 'USD/CHF';
   delete raw['EUR/JPY'];
   const quotes = normalizeQuotes(raw, time);
   assert.equal(quotes.length, 8);
@@ -51,7 +53,7 @@ test('breadth uses correct currency orientation, flat contribution, and full cov
   assert.equal(strengths(quotes).USD.score, 50);
   assert.equal(strengths(quotes).EUR.score, 100);
   assert.ok(strengths(quotes).USD.meanChange > 0); // exact inverse, not naive negation
-  quotes.forEach(q => { q.change = 0; });
+  quotes.forEach(q => { q.changes = {'15m':0,'1h':0,day:0}; });
   assert.equal(strengths(quotes).EUR.score, 50);
   quotes[0].status = 'stale';
   assert.equal(strengths(quotes).USD, null);
@@ -126,20 +128,9 @@ test('migration isolates daily snapshots without resetting the existing quota or
   assert.equal(result.reason, 'cooldown');
   assert.equal(result.fetchedAt, null);
   assert.equal(h.calls(), 0);
-  assert.ok(commands[0][1].endsWith(':snapshot:1min'));
+  assert.ok(commands[0][1].endsWith(':snapshot:strength-v3'));
   assert.match(commands[1][3], /^6emc:td:v1:[a-f0-9]{24}:cooldown$/);
   assert.match(commands[1][4], /^6emc:td:v1:[a-f0-9]{24}:budget$/);
-});
-test('daily candle timestamps remain stale; recent one-minute candles enable strength', async () => {
-  const raw = fixture();
-  Object.values(raw).forEach(q => { q.timestamp = (time - 18 * 3600000) / 1000; });
-  const old = present({ fetchedAt: new Date(time).toISOString(), quotes: normalizeQuotes(raw, time) }, time);
-  assert.equal(old.strengths.USD, null);
-  assert.equal(old.quotes[0].status, 'stale');
-  Object.values(raw).forEach(q => { q.timestamp = (time - 60000) / 1000; });
-  const fresh = present({ fetchedAt: new Date(time).toISOString(), quotes: normalizeQuotes(raw, time) }, time);
-  assert.equal(fresh.strengths.USD.score, 50);
-  assert.equal(fresh.strengths.EUR.score, 100);
 });
 test('market route requires existing dashboard token and forbids shared HTTP caching', async () => {
   const old = process.env.TWELVE_DATA_API_KEY;
@@ -152,4 +143,55 @@ test('market route requires existing dashboard token and forbids shared HTTP cac
     assert.equal(result.headers.get('cache-control'), 'no-store, private');
     assert.equal((await result.json()).reason, 'not_configured');
   } finally { if (old === undefined) delete process.env.TWELVE_DATA_API_KEY; else process.env.TWELVE_DATA_API_KEY = old; }
+});
+
+test('actual 15m and 1h returns use exact historical closes, with UTC day reference', () => {
+  const q=normalizeQuotes(fixture(),time)[0];
+  assert.ok(Math.abs(q.changes['15m'] - (1.25/1.247-1)*100)<1e-10);
+  assert.ok(Math.abs(q.changes['1h'] - (1.25/1.238-1)*100)<1e-10);
+  assert.equal(q.references.day,'2026-09-17T00:00:00.000Z');
+  assert.ok(Math.abs(q.changes.day - (1.25/1.106-1)*100)<1e-10);
+});
+test('incomplete and future candles never become the current price', () => {
+  const body=fixture();
+  body['EUR/USD'].values.unshift({datetime:'2026-09-17 12:00:00',close:'999'});
+  assert.equal(normalizeQuotes(body,time+60000)[0].price,1.25);
+});
+test('missing bars invalidate only affected horizons without substituting another day', () => {
+  const body=fixture();
+  body['EUR/USD'].values.splice(6,1);
+  const q=normalizeQuotes(body,time)[0];
+  assert.notEqual(q.changes['15m'],null);
+  assert.equal(q.changes['1h'],null);
+  assert.equal(q.changes.day,null);
+});
+test('different latest bars align all comparisons to one common close', () => {
+  const body=fixture(); body['EUR/JPY'].values.shift();
+  const quotes=normalizeQuotes(body,time);
+  assert.equal(new Set(quotes.map(q=>q.asOf)).size,1);
+  assert.equal(quotes[0].asOf,new Date(time-300000).toISOString());
+});
+test('tiny movements are neutral, and directions can differ by horizon', () => {
+  const quotes=normalizeQuotes(fixture(),time).map(q=>({...q,status:'fresh',changes:{'15m':0.001,'1h':0.5,day:-0.5}}));
+  assert.equal(strengths(quotes,'15m').EUR.score,50);
+  assert.equal(strengths(quotes,'15m').USD.score,50);
+  assert.equal(strengths(quotes,'1h').EUR.score,100);
+  assert.equal(strengths(quotes,'day').EUR.score,0);
+});
+test('UTC midnight and stale data do not carry yesterday into the new day', () => {
+  const quotes=normalizeQuotes(fixture(),time-12*3600000);
+  assert.equal(quotes[0].changes.day,null);
+  const result=present({fetchedAt:new Date(time).toISOString(),quotes:normalizeQuotes(fixture(),time)},time+31*60000);
+  assert.equal(result.periods['15m'].USD,null);
+  assert.equal(result.periods['1h'].EUR,null);
+  assert.equal(result.periods.day.EUR,null);
+});
+
+test('a new UTC day clears only daily returns even while cache is recent', () => {
+  const end=Date.parse('2026-09-17T23:55:00Z');
+  const quotes=normalizeQuotes(fixture(),time).map(q=>({...q,asOf:new Date(end).toISOString()}));
+  const result=present({fetchedAt:new Date(end).toISOString(),quotes},Date.parse('2026-09-18T00:01:00Z'));
+  assert.equal(result.periods.day.EUR,null);
+  assert.notEqual(result.periods['1h'].EUR,null);
+  assert.equal(result.quotes[0].changes.day,null);
 });

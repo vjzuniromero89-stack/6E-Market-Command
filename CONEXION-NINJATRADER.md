@@ -6,7 +6,7 @@ Esta entrega contiene la web completa y el código fuente del indicador MarketCo
 
 Precio de 6E, volumen de la barra actual, delta de esa barra y delta acumulado que exponen las barras Volumetric. Usa la configuración de delta y sesión del gráfico. El delta acumulado puede diferir de otro indicador con configuración, filtros o histórico distintos.
 
-El panel nuevo aparece encima del diseño original. El resto está marcado como demostración: forex, DXY, tasas, oro, petróleo, VWAP, POC y señales todavía no se alimentan con este conector. El precio de futuros 6E no se presenta como una cotización spot de EURUSD.
+El panel nuevo aparece encima del diseño original. El contexto FX de ocho pares se obtiene por separado de Twelve Data (ver TWELVE-DATA.md). DXY, tasas, oro, petróleo, VWAP, POC y señales avanzadas siguen marcados como DEMO. El precio de futuros 6E no se presenta como una cotización spot de EURUSD.
 
 ## 1. Subir a GitHub
 
@@ -64,3 +64,4 @@ Después de 20 segundos sin nuevos envíos aparece «Datos antiguos»; tras unos
 La compilación web y las pruebas de validación/autenticación se ejecutan localmente. Las pruebas de almacenamiento usan un servidor simulado; no sustituyen una prueba con tu base Redis. El indicador debe compilarse y comprobarse en tu NinjaTrader: no se ha ejecutado ni validado contra tu instalación real. No se ha desplegado esta entrega ni modificado tu GitHub.
 
 Fuentes: https://ninjatrader.com/support/helpGuides/nt8/order_flow_volumetric_bars2.htm y https://upstash.com/docs/redis/features/restapi
+

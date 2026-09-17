@@ -1,5 +1,6 @@
 import { authorized } from '../../../lib/feed.mjs';
 import { marketContext } from '../../../lib/market-context.mjs';
+import { mt5Context } from '../../../lib/mt5.mjs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,6 @@ export async function GET(request) {
   if (!authorized(request, process.env.DASHBOARD_READ_TOKEN)) {
     return Response.json({ error: 'Clave de lectura incorrecta o no configurada.' }, { status: 401, headers });
   }
-  const body = await marketContext();
+  const body = process.env.MARKET_CONTEXT_SOURCE === 'mt5' ? await mt5Context() : await marketContext();
   return Response.json(body, { status: body.status === 'unavailable' ? 503 : 200, headers });
 }

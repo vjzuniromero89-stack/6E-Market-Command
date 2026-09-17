@@ -1,57 +1,51 @@
-# Contexto FX
+# Strength por periodos — Twelve Data
 
-## Variables del servidor
+## Qué cambió
 
-Configura solo en Vercel: `TWELVE_DATA_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `DASHBOARD_READ_TOKEN`. Conserva también `NINJATRADER_INGEST_TOKEN` y `FEED_NAMESPACE`. Los tokens de lectura y envío deben ser distintos y de al menos 32 caracteres. No uses prefijos NEXT_PUBLIC_.
+La versión anterior interpretaba la variación de una sola vela como fortaleza general. Ahora se calculan retornos históricos de 15 minutos, 1 hora y día UTC. La vista inicial es 1 hora. El selector no hace solicitudes adicionales al proveedor.
 
-## Caché y presupuesto Basic 8
+## Datos y cálculo
 
-- Batch `/quote`: EUR/USD, GBP/USD, AUD/USD, USD/JPY, USD/CHF, USD/CAD, EUR/GBP, EUR/JPY. Cada lote cuesta 8 créditos, no 1.
-- Refresco bajo demanda cada 20 minutos: hasta 72 lotes / 576 créditos por 24 horas. Sin visitantes autenticados no hay consultas nuevas.
-- El navegador consulta nuestra API cada 60 segundos, nunca Twelve Data directamente.
-- Upstash conserva el último resultado 7 días. Tras 30 minutos de antigüedad de la cotización o consulta se marca antiguo y se excluye del cálculo.
-- Un script Redis atómico reserva 8 créditos ANTES de consultar, aplica 20 minutos de espera y contabiliza el consumo. La espera persiste aunque haya errores, timeout o respuestas parciales. No hay reintentos inmediatos.
-- Límite adicional de 768 créditos por día UTC según el reloj Redis; el contador caduca tras 48 horas. La frecuencia normal ya limita a 576.
-- Producción y previews con la misma API key deben compartir la MISMA base Redis. Las claves FX usan un hash de la API key, independientemente de FEED_NAMESPACE. No borres `6emc:td:v1:*`: reiniciarías la protección.
-- Si Redis falla, NO se consulta al proveedor. No hay fallback a memoria local.
-- WebSockets utilizados: 0. Los 8 créditos WS de prueba no garantizan acceso a estos ocho pares y no se utilizan en esta solución para Vercel.
-- La protección solo cubre este proyecto y su Redis compartido. Otros programas o bases Redis consumen por separado la cuota de la misma cuenta.
+Una solicitud batch a /time_series con interval=5min, outputsize=400, timezone=UTC y order=desc obtiene los ocho pares. Son 8 créditos por lote; el número de velas no multiplica el coste por símbolo. Se mantienen las consultas cada 20 minutos (máximo normal 576 créditos/día), presupuesto adicional de 768/día, bloqueo Redis compartido y cero WebSockets.
 
-## Strength
+Solo se usan velas finalizadas según su hora de apertura UTC más cinco minutos. El precio mostrado es el cierre de esa vela, no un tick actual. Todos los pares disponibles se alinean al menor de sus cierres más recientes; se exige una vela exacta en ese instante. Cada retorno compara cierres: 100 × (cierre final / cierre de referencia − 1). No usa percent_change de quote.
 
-Cambio porcentual percent_change proporcionado por `/quote?interval=1min`. Se usa la referencia de cierre del proveedor para ese intervalo; no se presenta como rendimiento diario. El timestamp identifica la apertura de la vela de un minuto, no el instante exacto del último tick. USD: EUR/USD, GBP/USD y AUD/USD invertidos; USD/JPY, USD/CHF y USD/CAD directos. EUR: EUR/USD, EUR/GBP y EUR/JPY directos. Inversión exacta: `100 × (1 / (1 + cambio/100) − 1)`.
+- 15 min: cierre final frente al cierre exactamente 15 minutos antes.
+- 1 hora: cierre final frente al cierre exactamente 60 minutos antes.
+- Día UTC: cierre final frente al cierre a las 00:00 UTC del mismo día. NO representa la apertura de Nueva York, Londres ni el rollover del broker.
 
-Amplitud con pesos iguales: positivo aporta 1, plano 0.5, negativo 0. Score = 100 × suma / número de pares. Más de 50 = STRONG, menos de 50 = WEAK, 50 = NEUTRAL. Es dirección, no magnitud, probabilidad ni señal de entrada. La API incluye el cambio medio orientado.
+Se exige continuidad de todas las velas de cada ventana, incluido el cierre de referencia. Si falta una barra o el histórico no alcanza, esa ventana queda sin datos. No se cruza un fin de semana ni se interpola. Una cesta requiere todos sus componentes, con la misma referencia y cierre final.
 
-Cada cesta requiere todos sus componentes recientes. Si falta uno o es antiguo, muestra SIN DATOS. Fuera de mercado puede aparecer ANTIGUO. La hora del proveedor y la hora de consulta se muestran por separado. No hay sustituciones con datos demo.
+USD: EUR/USD, GBP/USD y AUD/USD invertidos; USD/JPY, USD/CHF, USD/CAD directos. EUR: EUR/USD, EUR/GBP, EUR/JPY directos. Inversión exacta: 100 × (1 / (1 + cambio/100) − 1).
 
-## Seguridad y compatibilidad
+Amplitud: cada retorno orientado mayor que +0,01% aporta 1; menor que −0,01%, 0; entre ambos inclusive, 0,5. Score = 100 × suma / cantidad de pares. Esta banda neutral es una elección descriptiva de diseño, no un umbral validado de trading. Se muestra además el cambio medio orientado y el número de componentes positivos, neutrales y negativos. El porcentaje de amplitud no mide probabilidad ni magnitud.
 
-`GET /api/market-context` exige `Authorization: Bearer <DASHBOARD_READ_TOKEN>` y devuelve `Cache-Control: no-store, private`. No acepta símbolos, URLs ni frecuencia del cliente. No devuelve errores brutos, URLs con claves ni configuración. El token de lectura permanece solo en memoria de la pestaña y se elimina al desconectarse.
+Más de 50 = STRONG; menos de 50 = WEAK; 50 = NEUTRAL. Distintos periodos pueden mostrar direcciones opuestas. El resultado describe una ventana histórica al momento de consulta y no debe interpretarse como una señal en tiempo real. Las horas de referencia y de cierre se muestran en la zona local del navegador, indicando que el día comienza en UTC.
 
-`/api/ninjatrader`, `lib/feed.mjs` y `ninjatrader/MarketCommandBridge.cs` permanecen sin cambios. FX usa otras claves Redis y no escribe en el snapshot 6E. LiveFeed comparte su token en memoria con el contexto FX.
+Los datos o consultas de más de 30 minutos se marcan antiguos y se excluyen de Strength. Tras el cambio de día UTC, la vista de día queda pendiente hasta recibir el histórico nuevo. No se inventan valores.
+
+## Despliegue y compatibilidad
+
+Reemplaza los archivos del repositorio por este ZIP completo y despliega. Conserva todas las variables actuales: TWELVE_DATA_API_KEY, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, DASHBOARD_READ_TOKEN, NINJATRADER_INGEST_TOKEN y FEED_NAMESPACE. Nunca uses NEXT_PUBLIC_ para secretos. No cambies el indicador ni el endpoint NinjaTrader.
+
+Se usa una nueva instantánea :snapshot:strength-v3, conservando las claves :cooldown y :budget del despliegue anterior. Puede requerir hasta 20 minutos para obtener el primer lote; NO borres Redis para forzarlo. Producción y previews con la misma API key deben compartir la misma base Redis. Otros programas con esa API key consumen cuota fuera de este control.
+
+La API exige el token de lectura habitual y evita caché HTTP pública. La API key se usa solo en servidor. Sin Redis se bloquean nuevas consultas al proveedor. Los errores del proveedor no revelan secretos y no disparan reintentos inmediatos. El ZIP no contiene .env, claves reales ni dependencias instaladas.
+
+DXY, tasas, commodities y order flow avanzado continúan DEMO y excluidos del cálculo. Confluence sigue desactivada. Las rutas NinjaTrader, su almacenamiento y el bridge permanecen sin cambios.
 
 ## Diagnóstico
 
-- 401: token de lectura incorrecto o no configurado.
-- not_configured: falta TWELVE_DATA_API_KEY; vuelve a desplegar tras guardarla.
-- storage_unavailable: revisa Upstash; se detiene el consumo por seguridad.
-- cooldown: espera al siguiente intervalo; otro proceso reservó un lote o un intento falló.
-- daily_budget: presupuesto agotado hasta cambiar el día UTC.
-- provider_or_cache_unavailable: rechazo del proveedor, datos inválidos, timeout o fallo de guardado. Revisa el acceso de tu plan y el servicio, sin compartir claves.
-- partial_or_stale: pares incompletos o antiguos; no se calcula una cesta incompleta.
+- not_configured: falta TWELVE_DATA_API_KEY.
+- storage_unavailable: revisar Upstash.
+- cooldown: espera activa, también puede ser posterior a un fallo.
+- daily_budget: presupuesto agotado hasta cambio de día UTC.
+- provider_or_cache_unavailable: fallo del proveedor, respuesta inválida, timeout o guardado fallido.
+- SIN DATOS en un solo periodo: revisar cobertura histórica y fechas; otra ventana puede seguir disponible.
 
 ## Fuentes
 
-- https://twelvedata.com/docs — quote, campos y coste por símbolo.
-- https://support.twelvedata.com/en/articles/5203360-batch-api-requests — batch.
-- https://support.twelvedata.com/en/articles/5615854-credits — reinicio UTC.
-- https://twelvedata.com/pricing — Basic y WS de prueba.
-
-La tabla actual de Basic indica uso interno no destinado a visualización. Confirma con Twelve Data los permisos de visualización de tu cuenta antes de publicar cotizaciones para terceros. El endpoint permanece privado mediante token.
-
-
-## Corrección de fecha de cotización
-
-Se solicita interval=1min y timezone=UTC explícitamente. La versión anterior omitía interval y recibía el valor por defecto 1day: su apertura diaria podía marcarse incorrectamente como cotización antigua. La nueva instantánea usa el sufijo snapshot:1min; se mantienen las mismas claves de presupuesto y cooldown. Tras desplegar puede ser necesario esperar hasta 20 minutos a que venza la reserva existente. No borres Redis ni cambies claves. Una vela intradía realmente antigua sigue excluida de Strength.
-
+https://twelvedata.com/docs — time_series, intervalos, outputsize y horas de apertura.
+https://support.twelvedata.com/en/articles/5615854-credits — coste por símbolo y cuotas.
+https://support.twelvedata.com/en/articles/5745849-timezones — timezone explícito.
+https://twelvedata.com/pricing — permisos del plan: confirma con el proveedor la licencia de visualización antes de distribuir cotizaciones a terceros.

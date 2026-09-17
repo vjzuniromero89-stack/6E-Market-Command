@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 
 const format = value => typeof value === 'number' ? value.toLocaleString('en-US') : '—';
-export default function LiveFeed() {
+export default function LiveFeed({ onTokenChange = () => {} }) {
   const [key, setKey] = useState('');
   const [token, setToken] = useState('');
   const [result, setResult] = useState(null);
@@ -35,11 +35,11 @@ export default function LiveFeed() {
   const live = result?.status === 'live' && age !== null && age < 20;
   return <section className="livefeed card" aria-label="Conexión NinjaTrader">
     <div className="ct"><div><b>NINJATRADER · 6E</b><span>Lectura del gráfico volumétrico · actualización cada 5 segundos</span></div><span className={'pill ' + (live ? 'green' : 'red')}>{live ? 'RECIBIENDO DATOS' : snapshot ? 'DATOS ANTIGUOS' : 'SIN CONEXIÓN'}</span></div>
-    {!token ? <form className="connectform" onSubmit={event => { event.preventDefault(); setToken(key.trim()); setKey(''); }}>
+    {!token ? <form className="connectform" onSubmit={event => { event.preventDefault(); setToken(key.trim()); onTokenChange(key.trim()); setKey(''); }}>
       <label htmlFor="readkey">Clave privada de lectura</label>
       <input id="readkey" type="password" autoComplete="off" value={key} onChange={e => setKey(e.target.value)} minLength={32} required />
       <button type="submit">Conectar</button>
-    </form> : <div className="feedmeta"><span>{snapshot?.instrument || 'Esperando NinjaTrader…'}</span><button onClick={() => { setToken(''); setResult(null); setMessage('Conexión cerrada.'); }}>Desconectar</button></div>}
+    </form> : <div className="feedmeta"><span>{snapshot?.instrument || 'Esperando NinjaTrader…'}</span><button onClick={() => { setToken(''); onTokenChange(''); setResult(null); setMessage('Conexión cerrada.'); }}>Desconectar</button></div>}
     <p className="feedmessage" role="status">{message || (snapshot ? `Último envío hace ${age} s · barra ${snapshot.barTime} (hora del gráfico)` : 'Esperando el primer envío. Abre el gráfico con el conector activado.')}</p>
     <div className="flowgrid">
       <div><span>PRECIO 6E</span><b>{snapshot ? snapshot.price.toFixed(5) : '—'}</b></div>

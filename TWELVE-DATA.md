@@ -19,7 +19,7 @@ Configura solo en Vercel: `TWELVE_DATA_API_KEY`, `UPSTASH_REDIS_REST_URL`, `UPST
 
 ## Strength
 
-Cambio porcentual frente al cierre previo proporcionado por `/quote`. USD: EUR/USD, GBP/USD y AUD/USD invertidos; USD/JPY, USD/CHF y USD/CAD directos. EUR: EUR/USD, EUR/GBP y EUR/JPY directos. Inversión exacta: `100 × (1 / (1 + cambio/100) − 1)`.
+Cambio porcentual percent_change proporcionado por `/quote?interval=1min`. Se usa la referencia de cierre del proveedor para ese intervalo; no se presenta como rendimiento diario. El timestamp identifica la apertura de la vela de un minuto, no el instante exacto del último tick. USD: EUR/USD, GBP/USD y AUD/USD invertidos; USD/JPY, USD/CHF y USD/CAD directos. EUR: EUR/USD, EUR/GBP y EUR/JPY directos. Inversión exacta: `100 × (1 / (1 + cambio/100) − 1)`.
 
 Amplitud con pesos iguales: positivo aporta 1, plano 0.5, negativo 0. Score = 100 × suma / número de pares. Más de 50 = STRONG, menos de 50 = WEAK, 50 = NEUTRAL. Es dirección, no magnitud, probabilidad ni señal de entrada. La API incluye el cambio medio orientado.
 
@@ -49,3 +49,9 @@ Cada cesta requiere todos sus componentes recientes. Si falta uno o es antiguo, 
 - https://twelvedata.com/pricing — Basic y WS de prueba.
 
 La tabla actual de Basic indica uso interno no destinado a visualización. Confirma con Twelve Data los permisos de visualización de tu cuenta antes de publicar cotizaciones para terceros. El endpoint permanece privado mediante token.
+
+
+## Corrección de fecha de cotización
+
+Se solicita interval=1min y timezone=UTC explícitamente. La versión anterior omitía interval y recibía el valor por defecto 1day: su apertura diaria podía marcarse incorrectamente como cotización antigua. La nueva instantánea usa el sufijo snapshot:1min; se mantienen las mismas claves de presupuesto y cooldown. Tras desplegar puede ser necesario esperar hasta 20 minutos a que venza la reserva existente. No borres Redis ni cambies claves. Una vela intradía realmente antigua sigue excluida de Strength.
+

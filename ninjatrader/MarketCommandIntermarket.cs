@@ -43,9 +43,63 @@ namespace NinjaTrader.NinjaScript.Indicators
                 stopped = false;
                 warned = false;
                 reportedConnection = false;
+                Print("MarketCommandIntermarket: chart loaded; waiting for real-time GC/CL data.");
+            }
+            else if (State == State.Realtime)
+            {
+                string root = Instrument.MasterInstrument.Name;
+                Uri destination;
+                if ((root != "GC" && root != "CL") ||
+                    !Uri.TryCreate(Endpoint, UriKind.Absolute, out destination) ||
+                    destination.Scheme != "https" || !string.IsNullOrEmpty(destination.UserInfo) ||
+                    string.IsNullOrWhiteSpace(IngestToken) || IngestToken.Length < 32)
+                    Print("MarketCommandIntermarket " + root + ": cannot test connection; check chart, HTTPS endpoint and ingest key length.");
+                else
+                {
+                    string target = Endpoint;
+                    string secret = IngestToken;
+                    Task.Run(() => Probe(root, target, secret));
+                }
             }
             else if (State == State.Terminated)
                 stopped = true;
+        }
+
+        // Empty JSON is rejected with HTTP 400 only AFTER the server accepts the
+        // ingest key. This tests authorization without writing a quote to storage.
+        private void Probe(string root, string target, string secret)
+        {
+            try
+            {
+                var request = (HttpWebRequest)WebRequest.Create(target);
+                request.Method = "POST";
+                request.ContentType = "application/json";
+                request.Headers[HttpRequestHeader.Authorization] = "Bearer " + secret;
+                request.AllowAutoRedirect = false;
+                request.Timeout = 8000;
+                request.ReadWriteTimeout = 8000;
+                byte[] bytes = Encoding.UTF8.GetBytes("{}");
+                request.ContentLength = bytes.Length;
+                using (Stream stream = request.GetRequestStream()) stream.Write(bytes, 0, bytes.Length);
+                using (var response = (HttpWebResponse)request.GetResponse())
+                    Print("MarketCommandIntermarket " + root + ": diagnostic HTTP " + (int)response.StatusCode + " at " + new Uri(target).AbsolutePath + ".");
+            }
+            catch (WebException error)
+            {
+                var response = error.Response as HttpWebResponse;
+                if (response == null)
+                    Print("MarketCommandIntermarket " + root + ": diagnostic network failure or timeout.");
+                else
+                {
+                    int status = (int)response.StatusCode;
+                    string path = new Uri(target).AbsolutePath;
+                    Print("MarketCommandIntermarket " + root + (status == 400
+                        ? ": ingest key accepted at " + path + "; waiting for a new market tick."
+                        : ": diagnostic HTTP " + status + " at " + path + "."));
+                    response.Dispose();
+                }
+            }
+            catch { Print("MarketCommandIntermarket " + root + ": diagnostic failed before sending."); }
         }
 
         protected override void OnBarUpdate()

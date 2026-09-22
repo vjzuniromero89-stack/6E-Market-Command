@@ -1,5 +1,12 @@
 # Verificación — MT5 Live
 
+## Primera etapa del Engine General — 22 de septiembre de 2026
+
+- El sesgo FX usa exclusivamente seis cruces EUR sin EUR/USD y seis cruces USD sin EUR/USD, con la misma ventana y cierre. Solo MT5 en cuenta live puede producirlo; cuenta demo, Twelve Data, cobertura incompleta y ventanas desalineadas producen `SIN DATOS`.
+- El 6E de NinjaTrader, tasas oficiales diarias e intermercado se informan por separado, sin convertirlos en votos direccionales. Bookmap permanece `BLOQUEADO` por la restricción de Python API en `6EZ6.CME@BMD`.
+- No se generan señal de entrada, objetivo de pips ni probabilidad numérica. El índice USD estimado no se suma de nuevo al cálculo FX.
+- `npm test`: 52/52 pruebas aprobadas. `npm run build`: compilación de producción correcta. No hubo despliegue ni prueba con las cuentas reales del usuario.
+
 17 de septiembre de 2026. Node.js 24.20.0 / Next.js 15.5.25.
 
 - npm test: 27 pruebas aprobadas, incluidas las pruebas anteriores de NinjaTrader y Twelve Data.

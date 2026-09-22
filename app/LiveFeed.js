@@ -2,12 +2,13 @@
 import { useEffect, useState } from 'react';
 
 const format = value => typeof value === 'number' ? value.toLocaleString('en-US') : '—';
-export default function LiveFeed({ onTokenChange = () => {} }) {
+export default function LiveFeed({ onTokenChange = () => {}, onFeedChange = () => {} }) {
   const [key, setKey] = useState('');
   const [token, setToken] = useState('');
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState('Introduce tu clave de lectura para conectar.');
   const [now, setNow] = useState(0);
+  useEffect(() => { onFeedChange(result); }, [result, onFeedChange]);
   useEffect(() => {
     const saved = sessionStorage.getItem('market-command-read-token');
     if (saved) { setToken(saved); onTokenChange(saved); setMessage('Restaurando conexión…'); }

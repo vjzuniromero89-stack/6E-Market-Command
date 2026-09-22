@@ -1,5 +1,11 @@
 # Verificación — MT5 Live
 
+## Calendario de opciones 6E — 22 de septiembre de 2026
+
+- Se añadió una tarjeta de opciones EUU con la siguiente ventana ordinaria de días laborables a las 10:00 de Nueva York. La fecha se rotula **no confirmada**: no valida festivos, series efectivamente listadas ni el mes exacto del futuro subyacente.
+- La cadena de NinjaTrader mostrada por el usuario tiene cotización del futuro, pero ninguna opción. Por ello, strikes, interés abierto, griegas y gamma de market makers permanecen sin datos; el Engine General no recibe un voto de opciones.
+- `npm test`: 61/61 pruebas aprobadas, incluidas transiciones de día, fin de semana y horario de verano de Nueva York. `npm run build`: compilación de producción correcta. No hubo despliegue ni comprobación con datos de opciones reales.
+
 ## Análisis conjunto en la tarjeta 6E — 22 de septiembre de 2026
 
 - La tarjeta reúne EUR ex-USD, USD ex-EUR, movimiento directo del 6E, cambios porcentuales de las barras GC/CL y diferencial oficial US2Y–DE2Y. Si FX y la barra del 6E coinciden o divergen, lo explica textualmente.

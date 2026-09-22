@@ -45,6 +45,17 @@ test('minute and day rollovers invalidate outdated reference windows',()=>{
   const result=presentMT5(validateMT5(fixture(before),before),before+2000);
   assert.equal(result.quotes[0].status,'fresh');assert.equal(result.periods.day.EUR,null);assert.equal(result.periods['1h'].EUR,null);
 });
+test('optional DXY is validated independently and never becomes live when absent or stale',()=>{
+  const data=fixture();
+  data.dxy={symbol:'DXY',bid:98.25,ask:98.27,tickAt:now-1000,baselines:Object.fromEntries(Object.entries(targets(now)).map(([p,at])=>[p,{at,price:98}]))};
+  const live=presentMT5(validateMT5(data,now),now);
+  assert.equal(live.dxy.status,'fresh'); assert.equal(live.dxy.price,98.25);
+  assert.ok(live.dxy.changes['1h']>0);
+  assert.equal(presentMT5(validateMT5(fixture(),now),now).dxy.status,'unavailable');
+  data.dxy.tickAt=now-11000;
+  assert.equal(presentMT5(validateMT5(data,now),now).dxy.status,'stale');
+  data.dxy.ask=90; assert.throws(()=>validateMT5(data,now));
+});
 test('MT5 API enforces authentication, payload bounds and Supabase-only storage',async()=>{
   const originalFetch=globalThis.fetch, oldSource=process.env.MARKET_CONTEXT_SOURCE;
   Object.assign(process.env,{MT5_INGEST_TOKEN:secret,DASHBOARD_READ_TOKEN:read,NINJATRADER_INGEST_TOKEN:'n'.repeat(40),NEXT_PUBLIC_SUPABASE_URL:'https://project.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_test_only',MARKET_CONTEXT_SOURCE:'mt5'});

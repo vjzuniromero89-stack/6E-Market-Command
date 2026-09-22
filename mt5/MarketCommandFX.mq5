@@ -1,10 +1,11 @@
 #property strict
-#property version "1.10"
+#property version "1.20"
 #property description "Read-only FX bridge. Sends quotes/history only; contains no trading operations."
 
 input string DashboardEndpoint="https://6e-market-command.vjzuniromero89.workers.dev/api/mt5";
 input string IngestToken="";
 input string BrokerSymbols="EURUSD,GBPUSD,AUDUSD,NZDUSD,USDJPY,USDCHF,USDCAD,EURGBP,EURJPY,EURCHF,EURCAD,EURAUD,EURNZD";
+input string DxyBrokerSymbol=""; // Optional exact FOREX.com symbol; blank keeps DXY unavailable.
 input int ServerUTCOffsetMinutes=9999; // 9999 = infer current broker offset from synchronized Windows clock
 input int RequestTimeoutMs=1500;
 
@@ -13,6 +14,7 @@ string canonical[13]={"EUR/USD","GBP/USD","AUD/USD","NZD/USD","USD/JPY","USD/CHF
 string symbols[];
 string periods[3]={"15m","1h","day"};
 double baseline[13][3];
+double dxyBaseline[3];
 datetime refUTC[3];
 datetime lastMinute=0;
 long lastOffset=999999;
@@ -44,6 +46,8 @@ int OnInit() {
     if(!SymbolSelect(symbols[i],true)) Print("Symbol unavailable: ",symbols[i],". Check Market Watch symbol spelling.");
     for(int j=0;j<3;j++) baseline[i][j]=0;
   }
+  if(StringLen(DxyBrokerSymbol)>0 && !SymbolSelect(DxyBrokerSymbol,true)) Print("DXY symbol unavailable: ",DxyBrokerSymbol,". DXY remains unavailable.");
+  for(int j=0;j<3;j++) dxyBaseline[j]=0;
   if(!EventSetTimer(1)) return INIT_FAILED;
   Print("MarketCommandFX started. Read-only: no orders. Keep terminal and computer running.");
   return INIT_SUCCEEDED;
@@ -79,6 +83,7 @@ void OnTimer() {
     refUTC[0]=minute-15*60; refUTC[1]=minute-60*60; refUTC[2]=(datetime)(((long)utc/86400)*86400);
     // History loading may block briefly; performed once a minute, outside order processing.
     for(int i=0;i<PAIR_COUNT;i++) for(int j=0;j<3;j++) baseline[i][j]=ReferencePrice(symbols[i],refUTC[j],minute,offset);
+    if(StringLen(DxyBrokerSymbol)>0) for(int j=0;j<3;j++) dxyBaseline[j]=ReferencePrice(DxyBrokerSymbol,refUTC[j],minute,offset);
     lastMinute=minute; lastOffset=offset;
   }
   // History retrieval can take time. Discard this cycle if its references became outdated.
@@ -105,7 +110,25 @@ void OnTimer() {
     }
     body+="}}"; if(age<=10) valid++;
   }
-  body+="]}";
+  body+="],\"dxy\":";
+  bool dxyLive=false;
+  MqlTick dxyTick;
+  bool dxyOK=StringLen(DxyBrokerSymbol)>0 && SymbolInfoTick(DxyBrokerSymbol,dxyTick) && MathIsValidNumber(dxyTick.bid) && MathIsValidNumber(dxyTick.ask) && dxyTick.bid>0 && dxyTick.ask>=dxyTick.bid && dxyTick.time>0;
+  long dxyAge=dxyOK ? server-(long)dxyTick.time : -1;
+  if(!dxyOK || dxyAge < -2) body+="null";
+  else {
+    long dxyUTC=(long)utc-dxyAge;
+    body+="{\"symbol\":\"DXY\",\"bid\":"+P(dxyTick.bid)+",\"ask\":"+P(dxyTick.ask)+",\"tickAt\":"+N(dxyUTC*1000)+",\"baselines\":{";
+    bool firstDxy=true;
+    for(int j=0;j<3;j++) if(dxyBaseline[j]>0) {
+      if(!firstDxy) body+=",";
+      firstDxy=false;
+      body+="\""+periods[j]+"\":{\"price\":"+P(dxyBaseline[j])+",\"at\":"+N((long)refUTC[j]*1000)+"}";
+    }
+    body+="}}";
+    dxyLive=dxyAge<=10;
+  }
+  body+="}";
   char payload[],response[];
   StringToCharArray(body,payload,0,WHOLE_ARRAY,CP_UTF8);
   ArrayResize(payload,ArraySize(payload)-1); // Do not send the terminating NUL.
@@ -115,7 +138,7 @@ void OnTimer() {
   int status=WebRequest("POST",DashboardEndpoint,headers,RequestTimeoutMs,payload,response,responseHeaders);
   if(status==200) {
     failures=0; nextAttempt=0;
-    Comment("MarketCommandFX: sent | ",valid,"/13 recent quotes | ",mode," | target 1 second\nNo trading operations. Strength needs M1 history.");
+    Comment("MarketCommandFX: sent | ",valid,"/13 FX | DXY ",(dxyLive ? "LIVE" : "UNAVAILABLE")," | ",mode,"\nRead-only. No trading operations.");
   } else {
     failures++;
     int waitSeconds=(int)MathMin(30,MathPow(2,MathMin(failures,5)));

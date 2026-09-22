@@ -29,6 +29,7 @@ No uses la contraseña de FOREX.com. No pongas `MT5_INGEST_TOKEN` en `wrangler.j
    - `DashboardEndpoint`: `https://6e-market-command.vjzuniromero89.workers.dev/api/mt5`
    - `IngestToken`: el valor de `MT5_INGEST_TOKEN`
    - `SendIntervalSeconds`: `1`
+   - `DxyBrokerSymbol`: el nombre exacto del Dollar Index en FOREX.com; déjalo vacío si no existe o aún no lo has verificado
 
 8. `BrokerSymbols` debe conservar este orden (13 pares):
 
@@ -43,6 +44,7 @@ Solo necesitas una instancia del conector. No requiere DLL ni permiso para opera
 - En el gráfico, el conector debe mostrar envíos aceptados.
 - En el dashboard, la franja FX debe indicar **MT5 / FOREX.com** y **LIVE** o **DEMO** según la cuenta real.
 - El gráfico debe indicar `13/13 recent quotes`; EUR usa 7 cruces, USD 7 pares y USD ex-EUR 6 pares.
+- DXY solo mostrará `LIVE MT5` cuando `DxyBrokerSymbol` coincida con un instrumento real y reciente del bróker. En blanco permanece `UNAVAILABLE`.
 - Compara EURUSD BID/ASK entre Market Watch y el dashboard.
 - Si faltan referencias de 15 min, 1 hora o día UTC, abre temporalmente los gráficos M1 de los pares para que MT5 descargue el histórico.
 - NinjaTrader/6E debe continuar mostrando **RECIBIENDO DATOS** de forma independiente.

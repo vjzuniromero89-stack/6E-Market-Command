@@ -56,6 +56,27 @@ test('optional DXY is validated independently and never becomes live when absent
   assert.equal(presentMT5(validateMT5(data,now),now).dxy.status,'stale');
   data.dxy.ask=90; assert.throws(()=>validateMT5(data,now));
 });
+test('USD basket estimate requires all six fresh MT5 mids and is never described as official DXY',()=>{
+  const data=fixture();
+  const bids={'EUR/USD':1.15,'USD/JPY':150,'GBP/USD':1.33,'USD/CAD':1.4,'USD/CHF':0.82};
+  for(const quote of data.quotes) if(bids[quote.symbol]) { quote.bid=bids[quote.symbol]; quote.ask=quote.bid+0.0002; }
+  data.usdSek={symbol:'USD/SEK',bid:9.1,ask:9.1004,tickAt:now-1000,
+    baselines:Object.fromEntries(Object.entries(targets(now)).map(([p,at])=>[p,{at,price:9.0}]))};
+  const result=presentMT5(validateMT5(data,now),now);
+  const mids={EURUSD:1.1501,USDJPY:150.0001,GBPUSD:1.3301,USDCAD:1.4001,USDSEK:9.1002,USDCHF:0.8201};
+  const expected=50.14348112 * mids.EURUSD**-0.576 * mids.USDJPY**0.136 * mids.GBPUSD**-0.119 * mids.USDCAD**0.091 * mids.USDSEK**0.042 * mids.USDCHF**0.036;
+  assert.ok(Math.abs(result.usdBasketEstimate.price-expected)<1e-9);
+  assert.equal(result.usdBasketEstimate.status,'fresh');assert.equal(result.usdBasketEstimate.official,false);
+  assert.equal(result.dxy.status,'unavailable');
+  const old=structuredClone(data);old.usdSek.tickAt=now-11000;
+  assert.equal(presentMT5(validateMT5(old,now),now).usdBasketEstimate.status,'unavailable');
+  const absent=structuredClone(data);delete absent.usdSek;
+  assert.equal(presentMT5(validateMT5(absent,now),now).usdBasketEstimate.status,'unavailable');
+  const malformed=structuredClone(data);malformed.usdSek.symbol='USD/XXX';
+  assert.throws(()=>validateMT5(malformed,now));
+  const unrelated=structuredClone(data);unrelated.usdSek.accountPassword='not-stored';
+  assert.equal(validateMT5(unrelated,now).usdSek.accountPassword,undefined);
+});
 test('MT5 API enforces authentication, payload bounds and Supabase-only storage',async()=>{
   const originalFetch=globalThis.fetch, oldSource=process.env.MARKET_CONTEXT_SOURCE;
   Object.assign(process.env,{MT5_INGEST_TOKEN:secret,DASHBOARD_READ_TOKEN:read,NINJATRADER_INGEST_TOKEN:'n'.repeat(40),NEXT_PUBLIC_SUPABASE_URL:'https://project.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_test_only',MARKET_CONTEXT_SOURCE:'mt5'});

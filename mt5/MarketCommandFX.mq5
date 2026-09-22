@@ -1,11 +1,12 @@
 #property strict
-#property version "1.20"
+#property version "1.30"
 #property description "Read-only FX bridge. Sends quotes/history only; contains no trading operations."
 
 input string DashboardEndpoint="https://6e-market-command.vjzuniromero89.workers.dev/api/mt5";
 input string IngestToken="";
 input string BrokerSymbols="EURUSD,GBPUSD,AUDUSD,NZDUSD,USDJPY,USDCHF,USDCAD,EURGBP,EURJPY,EURCHF,EURCAD,EURAUD,EURNZD";
 input string DxyBrokerSymbol=""; // Optional exact FOREX.com symbol; blank keeps DXY unavailable.
+input string UsdSekBrokerSymbol="USDSEK"; // Optional sixth component for a clearly labeled USD basket estimate.
 input int ServerUTCOffsetMinutes=9999; // 9999 = infer current broker offset from synchronized Windows clock
 input int RequestTimeoutMs=1500;
 
@@ -15,6 +16,7 @@ string symbols[];
 string periods[3]={"15m","1h","day"};
 double baseline[13][3];
 double dxyBaseline[3];
+double usdSekBaseline[3];
 datetime refUTC[3];
 datetime lastMinute=0;
 long lastOffset=999999;
@@ -47,7 +49,8 @@ int OnInit() {
     for(int j=0;j<3;j++) baseline[i][j]=0;
   }
   if(StringLen(DxyBrokerSymbol)>0 && !SymbolSelect(DxyBrokerSymbol,true)) Print("DXY symbol unavailable: ",DxyBrokerSymbol,". DXY remains unavailable.");
-  for(int j=0;j<3;j++) dxyBaseline[j]=0;
+  if(StringLen(UsdSekBrokerSymbol)>0 && !SymbolSelect(UsdSekBrokerSymbol,true)) Print("USD/SEK symbol unavailable: ",UsdSekBrokerSymbol,". Estimated USD basket remains unavailable.");
+  for(int j=0;j<3;j++) { dxyBaseline[j]=0; usdSekBaseline[j]=0; }
   if(!EventSetTimer(1)) return INIT_FAILED;
   Print("MarketCommandFX started. Read-only: no orders. Keep terminal and computer running.");
   return INIT_SUCCEEDED;
@@ -84,6 +87,7 @@ void OnTimer() {
     // History loading may block briefly; performed once a minute, outside order processing.
     for(int i=0;i<PAIR_COUNT;i++) for(int j=0;j<3;j++) baseline[i][j]=ReferencePrice(symbols[i],refUTC[j],minute,offset);
     if(StringLen(DxyBrokerSymbol)>0) for(int j=0;j<3;j++) dxyBaseline[j]=ReferencePrice(DxyBrokerSymbol,refUTC[j],minute,offset);
+    if(StringLen(UsdSekBrokerSymbol)>0) for(int j=0;j<3;j++) usdSekBaseline[j]=ReferencePrice(UsdSekBrokerSymbol,refUTC[j],minute,offset);
     lastMinute=minute; lastOffset=offset;
   }
   // History retrieval can take time. Discard this cycle if its references became outdated.
@@ -128,6 +132,24 @@ void OnTimer() {
     body+="}}";
     dxyLive=dxyAge<=10;
   }
+  body+=",\"usdSek\":";
+  bool usdSekLive=false;
+  MqlTick usdSekTick;
+  bool usdSekOK=StringLen(UsdSekBrokerSymbol)>0 && SymbolInfoTick(UsdSekBrokerSymbol,usdSekTick) && MathIsValidNumber(usdSekTick.bid) && MathIsValidNumber(usdSekTick.ask) && usdSekTick.bid>0 && usdSekTick.ask>=usdSekTick.bid && usdSekTick.time>0;
+  long usdSekAge=usdSekOK ? server-(long)usdSekTick.time : -1;
+  if(!usdSekOK || usdSekAge < -2) body+="null";
+  else {
+    long usdSekUTC=(long)utc-usdSekAge;
+    body+="{\"symbol\":\"USD/SEK\",\"bid\":"+P(usdSekTick.bid)+",\"ask\":"+P(usdSekTick.ask)+",\"tickAt\":"+N(usdSekUTC*1000)+",\"baselines\":{";
+    bool firstSek=true;
+    for(int j=0;j<3;j++) if(usdSekBaseline[j]>0) {
+      if(!firstSek) body+=",";
+      firstSek=false;
+      body+="\""+periods[j]+"\":{\"price\":"+P(usdSekBaseline[j])+",\"at\":"+N((long)refUTC[j]*1000)+"}";
+    }
+    body+="}}";
+    usdSekLive=usdSekAge<=10;
+  }
   body+="}";
   char payload[],response[];
   StringToCharArray(body,payload,0,WHOLE_ARRAY,CP_UTF8);
@@ -138,7 +160,7 @@ void OnTimer() {
   int status=WebRequest("POST",DashboardEndpoint,headers,RequestTimeoutMs,payload,response,responseHeaders);
   if(status==200) {
     failures=0; nextAttempt=0;
-    Comment("MarketCommandFX: sent | ",valid,"/13 FX | DXY ",(dxyLive ? "LIVE" : "UNAVAILABLE")," | ",mode,"\nRead-only. No trading operations.");
+    Comment("MarketCommandFX: sent | ",valid,"/13 FX | USD/SEK ",(usdSekLive ? "LIVE" : "UNAVAILABLE")," | DXY ",(dxyLive ? "LIVE" : "UNAVAILABLE")," | ",mode,"\nRead-only. No trading operations.");
   } else {
     failures++;
     int waitSeconds=(int)MathMin(30,MathPow(2,MathMin(failures,5)));

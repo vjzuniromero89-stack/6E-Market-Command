@@ -12,3 +12,12 @@
 - ZIP completo sin .env, claves reales, node_modules, .next, .git ni archivos temporales.
 
 No se instaló ni ejecutó el EA en la cuenta del usuario; no se enviaron órdenes, no se consultaron claves y no se desplegó. La compilación no sustituye la prueba con el terminal y Redis reales. Tras instalar, seguir INSTALAR-MT5.md para comparar Bid/Ask, edad de tick, referencias, desconexión y continuidad de NinjaTrader. La frecuencia objetivo es un segundo; la entrega depende del broker, terminal, red, almacenamiento y navegador. Vercel/Redis pueden generar cargos por el volumen de solicitudes explicado en la guía.
+
+## Actualización DXY estimado y tasas — 22 de septiembre de 2026
+
+- `npm test`: 38 de 38 pruebas aprobadas, incluidas las nuevas de seis cruces USD, caducidad, tasas y fecha común.
+- `npm run build`: compilación correcta con `/api/official-rates`.
+- MetaEditor: versión 1.30 de `MarketCommandFX.ex5`, compilada con **0 errores y 0 advertencias**.
+- Tasas: fuentes oficiales Tesoro de EE. UU. y Bundesbank, ambos 2 años; el diferencial usa una observación diaria de la misma fecha dentro de 7 días. Las pruebas de la respuesta son simuladas; el entorno local no logró acceder a las respuestas públicas reales, por lo que **no se ha confirmado todavía `AVAILABLE` en producción**.
+- Índice USD: la fórmula pública de ICE se aplica a seis pares FOREX.com con punto medio bid/ask. **Es una estimación, no DXY oficial.** Falta comprobar que la cuenta FOREX.com del usuario ofrece `USDSEK` y que llegan seis ticks recientes. Si no, el índice permanece `UNAVAILABLE`.
+- `npm run cf:build` no se pudo completar en Windows: OpenNext reportó acceso denegado al resolver un directorio raíz. No hay prueba de despliegue Cloudflare de esta versión.

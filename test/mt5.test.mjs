@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { validateMT5, presentMT5, targets, mt5Key } from '../lib/mt5.mjs';
+import { validateMT5, presentMT5, targets } from '../lib/mt5.mjs';
 import { SYMBOLS } from '../lib/market-context.mjs';
 import { POST } from '../app/api/mt5/route.js';
 import { GET } from '../app/api/market-context/route.js';
@@ -45,17 +45,18 @@ test('minute and day rollovers invalidate outdated reference windows',()=>{
   const result=presentMT5(validateMT5(fixture(before),before),before+2000);
   assert.equal(result.quotes[0].status,'fresh');assert.equal(result.periods.day.EUR,null);assert.equal(result.periods['1h'].EUR,null);
 });
-test('MT5 API enforces dedicated authentication, payload bounds, replay ordering, rate control, and provider isolation',async()=>{
+test('MT5 API enforces authentication, payload bounds and Supabase-only storage',async()=>{
   const originalFetch=globalThis.fetch, oldSource=process.env.MARKET_CONTEXT_SOURCE;
-  Object.assign(process.env,{MT5_INGEST_TOKEN:secret,DASHBOARD_READ_TOKEN:read,NINJATRADER_INGEST_TOKEN:'n'.repeat(40),UPSTASH_REDIS_REST_URL:'https://redis.invalid',UPSTASH_REDIS_REST_TOKEN:'fake-only',MARKET_CONTEXT_SOURCE:'mt5'});
+  Object.assign(process.env,{MT5_INGEST_TOKEN:secret,DASHBOARD_READ_TOKEN:read,NINJATRADER_INGEST_TOKEN:'n'.repeat(40),NEXT_PUBLIC_SUPABASE_URL:'https://project.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_test_only',MARKET_CONTEXT_SOURCE:'mt5'});
   let stored=null;
   globalThis.fetch=async(url,options)=>{
-    assert.equal(String(url),'https://redis.invalid');
-    const c=JSON.parse(options.body);assert.equal(c[0]==='EVAL'?c[3]:c[1],mt5Key());
-    if(c[0]==='GET') return Response.json({result:stored});
-    const next=JSON.parse(c[4]);
-    if(stored){const prev=JSON.parse(stored);if(prev.sentAt>=next.sentAt)return Response.json({result:0});if(next.receivedAt-prev.receivedAt<750)return Response.json({result:2});}
-    stored=c[4];return Response.json({result:1});
+    const target=String(url);
+    assert.ok(target.startsWith('https://project.supabase.co/rest/v1/'));
+    assert.equal(options.headers.apikey,'sb_secret_test_only');
+    assert.equal(options.headers.authorization,undefined);
+    if(target.includes('market_feed_latest?select=payload')) return Response.json(stored?[{payload:stored}]:[]);
+    if(target.includes('market_feed_latest?on_conflict=instrument')) stored=JSON.parse(options.body).payload;
+    return new Response(null,{status:204});
   };
   try {
     assert.equal((await POST(request(read,fixture()))).status,401);
@@ -66,9 +67,6 @@ test('MT5 API enforces dedicated authentication, payload bounds, replay ordering
     const get=()=>GET(new Request('https://test.invalid/api/market-context',{headers:{Authorization:`Bearer ${read}`}}));
     assert.equal((await (await get()).json()).reason,'waiting_mt5');
     const live=fixture(Date.now());assert.equal((await POST(request(secret,live))).status,200);
-    assert.equal((await (await POST(request(secret,live))).json()).accepted,false);
-    const older={...live,sentAt:live.sentAt-1}; assert.equal((await (await POST(request(secret,older))).json()).accepted,false);
-    const next={...live,sentAt:live.sentAt+1};assert.equal((await POST(request(secret,next))).status,429);
     const response=await get();assert.equal(response.headers.get('cache-control'),'no-store, private');
     assert.equal((await response.json()).source,'MT5 / FOREX.com');
     globalThis.fetch=async()=>{throw Error('private-details')};

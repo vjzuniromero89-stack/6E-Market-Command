@@ -2,7 +2,7 @@
 #property version "1.00"
 #property description "Read-only FX bridge. Sends quotes/history only; contains no trading operations."
 
-input string DashboardEndpoint="https://YOUR-PROJECT.vercel.app/api/mt5";
+input string DashboardEndpoint="https://6e-market-command.vjzuniromero89.workers.dev/api/mt5";
 input string IngestToken="";
 input string BrokerSymbols="EURUSD,GBPUSD,AUDUSD,USDJPY,USDCHF,USDCAD,EURGBP,EURJPY";
 input int ServerUTCOffsetMinutes=9999; // 9999 = infer current broker offset from synchronized Windows clock
@@ -120,6 +120,6 @@ void OnTimer() {
     int waitSeconds=(int)MathMin(30,MathPow(2,MathMin(failures,5)));
     nextAttempt=GetTickCount64()+(ulong)waitSeconds*1000;
     Comment("MarketCommandFX: send failed HTTP ",status," | retry in ",waitSeconds," s. See Experts.");
-    Notice("HTTP "+IntegerToString(status)+"; error "+IntegerToString(GetLastError())+". Check HTTPS allowlist, endpoint, dedicated token and Vercel storage. No credentials logged.");
+    Notice("HTTP "+IntegerToString(status)+"; error "+IntegerToString(GetLastError())+". Check HTTPS allowlist, endpoint, dedicated token and Cloudflare/Supabase. No credentials logged.");
   }
 }

@@ -1,6 +1,6 @@
 import { authorized } from '../../../lib/feed.mjs';
-import { redis } from '../../../lib/legacy-redis.mjs';
-import { validateMT5, mt5Key, STORE_MT5 } from '../../../lib/mt5.mjs';
+import { validateMT5 } from '../../../lib/mt5.mjs';
+import { persistFXSnapshot } from '../../../lib/supabase.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff' } });
@@ -21,7 +21,7 @@ export async function POST(request) {
     snapshot = validateMT5(JSON.parse(Buffer.concat(chunks).toString('utf8')));
   } catch { return json({ error: 'Invalid FX snapshot or Windows clock' }, 400); }
   try {
-    const result = await redis(['EVAL', STORE_MT5, 1, mt5Key(), JSON.stringify(snapshot), snapshot.sentAt, snapshot.receivedAt]);
-    return result === 2 ? json({ error: 'Send at most once per second' }, 429) : json({ ok: true, accepted: result === 1 });
-  } catch { return json({ error: 'Storage unavailable' }, 503); }
+    await persistFXSnapshot(snapshot);
+    return json({ ok:true, accepted:true });
+  } catch (error) { return json({ error:`Supabase write unavailable: ${error instanceof Error ? error.message : 'unknown error'}` }, 503); }
 }

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import useMarketContext from './useMarketContext';
 import useIntermarket from './useIntermarket';
 import { evaluateGeneralEngine } from '../lib/general-engine.mjs';
+import { buildDailyBrief } from '../lib/daily-brief.mjs';
 import {Activity, Bell, CalendarDays, CircleDollarSign, Gauge, Gem, Landmark, Radio, Settings2, Waves} from 'lucide-react';
 const usd=['EUR/USD','GBP/USD','AUD/USD','NZD/USD','USD/JPY','USD/CHF','USD/CAD'];
 const eur=['EUR/USD','EUR/GBP','EUR/JPY','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD'];
@@ -51,18 +52,28 @@ function GeneralGauge({general,period}) {
     <div className="generalGaugeSources"><span>6E {general.ninjaLive?'RECIENTE':'NO VERIFICADO'}</span><span>TASAS {general.ratesDaily?'DIARIAS':'SIN DATOS'}</span><span>GC/CL {general.intermarketLive.length}/2</span><span>OPCIONES SIN FEED</span><span>BOOKMAP BLOQUEADO</span></div>
   </aside>;
 }
+function DailyBrief({general}) {
+  const brief = buildDailyBrief(general);
+  return <section className="card dailyBrief" aria-label="Informe automático del 6E">
+    <div className="ct"><Activity/><div><b>INFORME AUTOMÁTICO · 6E</b><span>Se actualiza con los motores conectados al abrir la página</span></div><Pill>CONTEXTO · NO ENTRADA</Pill></div>
+    <div className="dailyBriefGrid">{brief.items.map(item=><div className="dailyBriefItem" key={item.label}><small>{item.label}</small><p>{item.text}</p></div>)}</div>
+    <p className="feedmessage">Cada línea conserva la frecuencia de su fuente: 6E/FX/GC/CL requieren datos recientes; tasas son de cierre diario. No hay probabilidad calibrada ni señal de entrada. Si una fuente falta, el informe lo muestra.</p>
+  </section>;
+}
 function OptionsCalendar() {
   const links = [
     ['Vencimientos y series', 'Calendario oficial', 'https://www.cmegroup.com/markets/fx/g10/euro-fx.calendar.options.html'],
     ['Calls, puts y strikes', 'Cotizaciones CME', 'https://www.cmegroup.com/markets/fx/g10/euro-fx.quotes.options.html'],
     ['Interés abierto por vencimiento', 'Perfil CME', 'https://www.cmegroup.com/tools-information/quikstrike/options-open-interest-profile.html?pid=350'],
+    ['OI, cambio de OI y volumen por strike', 'Heatmap CME', 'https://www.cmegroup.com/tools-information/quikstrike/quikstrike-user-guide-open-interest-heatmap.html'],
+    ['Liquidaciones e IV por serie', 'Guía CME', 'https://www.cmegroup.com/tools-information/quikstrike/quikstrike-user-guide-option-settlements.html'],
     ['Delta, volumen e interés abierto', 'Boletín diario · página 39', 'https://www.cmegroup.com/market-data/daily-bulletin.html'],
     ['Volatilidad implícita a 30 días', 'CVOL EUR/USD', 'https://www.cmegroup.com/market-data/cme-group-benchmark-administration/cme-group-volatility-indexes.html'],
     ['Hora y método de referencia', 'Fixing CME', 'https://www.cmegroup.com/trading/fx/currfixprice.html'],
   ];
   return <section className="card optionsCalendar" aria-label="Opciones EUR/USD sobre futuros 6E">
     <div className="ct"><CalendarDays/><div><b>OPCIONES 6E · INVESTIGACIÓN CME</b><span>Vencimientos, strikes y posiciones publicadas por la bolsa</span></div><Pill>SIN FEED AUTOMÁTICO</Pill></div>
-    <div className="optionsCalendarBody"><div className="optionsCalendarEvent"><small>VENCIMIENTO EXACTO</small><strong>Verificar en CME</strong><span>Las opciones EUR/USD sobre 6E tienen referencias semanales y mensuales; el fixing ordinario es a las 10:00 a. m. de Nueva York. No se muestra una fecha calculada como si fuera una serie confirmada.</span></div><div className="optionsCalendarFacts">{links.map(([title,label,url])=><a key={url} href={url} target="_blank" rel="noopener noreferrer"><span>{title}</span><b>{label} ↗</b></a>)}</div></div>
+    <div className="optionsCalendarBody"><div className="optionsCalendarEvent"><small>VENCIMIENTO DE HOY</small><strong>No verificable automáticamente</strong><span>Falta una fuente autorizada de las series exactas y el futuro subyacente. No se afirma que hoy venza —ni que no venza— una opción. La web de CME permite consulta humana, pero no alimenta este motor.</span></div><div className="optionsCalendarFacts">{links.map(([title,label,url])=><a key={url} href={url} target="_blank" rel="noopener noreferrer"><span>{title}</span><b>{label} ↗</b></a>)}</div></div>
     <div className="optionsCalendarChecklist"><b>Para interpretar una opción frente al 6E:</b><span>verifica serie y mes del futuro subyacente</span><span>compara strike con ese futuro, no con spot sin ajustar</span><span>fecha el interés abierto: es dato del cierre anterior</span><span>no atribuyas el signo de gamma al market maker sin su posición neta</span></div>
     <p className="feedmessage">Estas páginas son para consulta directa. El boletín publica datos del día bursátil anterior y no sustituye una cadena en vivo. La web de CME no autoriza por sí sola a copiar automáticamente sus datos a esta app. Hasta tener un feed permitido, opciones no vota en el Engine General ni produce probabilidad o señal.</p>
   </section>;
@@ -72,6 +83,7 @@ export default function Page(){const [token,setToken]=useState(''); const [perio
 <LiveFeed onTokenChange={setToken} onFeedChange={setNinjaFeed}/><ProviderDiscovery token={token}/><div className="demo-label">{mt5 ? "FX: MT5 / FOREX.com · envío y consulta objetivo 1 segundo · "+(data.mode === "live" ? "CUENTA LIVE" : data.mode === "demo" ? "CUENTA DEMO" : "ESPERANDO CONECTOR") : data ? "FX: Twelve Data · caché 20 minutos" : "FX: conecta para comprobar la fuente"}. Índice USD: {dxyLive ? "SÍMBOLO MT5" : estimateLive ? "ESTIMACIÓN MT5 · NO DXY OFICIAL" : "UNAVAILABLE"}. Tasas: {ratesDaily ? "CIERRE DIARIO OFICIAL" : "UNAVAILABLE"}. Intermercado: {intermarketLiveCount ? `${intermarketLiveCount}/2 GRÁFICOS GC/CL ENVIANDO` : "GC/CL SIN CONECTOR ACTUAL"}; el retardo bursátil depende de la suscripción. ES y VIX aún no conectados. El 6E real está en el panel NinjaTrader.</div>
 <div className="ticker"><span>EUR/USD <b>{eurUsdLive ? eurUsdLive.price.toFixed(5) : 'UNAVAILABLE'}</b> <i>{eurUsdLive?'MT5 reciente':'Sin cotización live reciente'}</i></span><span>ÍNDICE USD {estimateLive&&!dxyLive?'ESTIMADO':'MT5'} <b>{displayedUsdIndex ? displayedUsdIndex.price?.toFixed(3) : 'UNAVAILABLE'}</b></span><span>GC FUTURO <b>{gcLive ? gcLive.price.toFixed(2) : 'UNAVAILABLE'}</b></span><span>US 2Y <b>{rates?.us2y ? rates.us2y.value.toFixed(2)+'% · CIERRE '+rates.us2y.date : 'UNAVAILABLE'}</b></span><span>US10Y <b>UNAVAILABLE</b></span><span>CL FUTURO <b>{clLive ? clLive.price.toFixed(2) : 'UNAVAILABLE'}</b></span></div>
 <section className="hero"><div><Pill>CONTEXTO FX · {periodLabels[period]} · SIN SEÑAL DE ENTRADA</Pill><h1>EUR <span className={strength?.EUR?.score > 50 ? "up" : strength?.EUR?.score < 50 ? "down" : "neutral-text"}>{label(strength?.EUR)}</span> · USD <span className={strength?.USD?.score > 50 ? "up" : strength?.USD?.score < 50 ? "down" : "neutral-text"}>{label(strength?.USD)}</span></h1><p>Amplitud de {periodLabels[period]}: {mt5 ? "USD con 7 pares, USD ex-EUR con 6 y EUR con 7" : "USD con 6 pares y EUR con 3"}. {mt5 ? "Bid actual frente a cierres históricos M1; ventanas 15 min y 1 h ancladas al minuto" : "Cambios entre cierres de velas de 5 min"}; neutral entre −0,01% y +0,01%. No incluye tasas ni order flow. {data?.fetchedAt ? 'Última consulta: '+new Date(data.fetchedAt).toLocaleString()+'.' : (token ? 'Esperando la primera consulta del nuevo contexto.' : 'Conecta con tu clave de lectura para consultar FX.')} {data?.reason ? 'Actualización pendiente: '+({waiting_mt5:'esperando el primer envío de MT5',mt5_disconnected:'terminal MT5 desconectado',not_configured:'falta configurar Twelve Data',storage_unavailable:'almacenamiento no disponible',daily_budget:'presupuesto diario agotado',cooldown:'caché protegida',provider_or_cache_unavailable:'proveedor o caché no disponible'}[data.reason] || 'sin datos')+'.' : ''}</p></div><GeneralGauge general={general} period={period}/></section>
+<DailyBrief general={general}/>
 <section className="period-controls" aria-label="Periodo de Strength"><div>{Object.entries(periodLabels).map(([key,name])=><button key={key} aria-pressed={period===key} onClick={()=>setPeriod(key)}>{name}</button>)}</div><p>Desde {data?.quotes?.find(q=>q.references?.[period])?.references?.[period] ? new Date(data.quotes.find(q=>q.references?.[period]).references[period]).toLocaleString() : '—'} hasta {data?.quotes?.find(q=>q.asOf)?.asOf ? new Date(data.quotes.find(q=>q.asOf).asOf).toLocaleString() : '—'} · Horas mostradas en tu zona local. Día UTC comienza a las 00:00 UTC. {mt5 ? "Lectura objetivo 1 s, sujeta a ticks y latencia. Sin datos nuevos no se inventan cambios." : "Refresco cada 20 min."} Cambiar la vista no consulta al proveedor.</p></section>
 <section className="gridTop">
 <div className="card"><div className="ct"><CircleDollarSign/><div><b>USD ENGINE</b><span>Dollar breadth</span></div><Pill tone={strength?.USD?strength.USD.score<50?'red':strength.USD.score>50?'green':'neutral':'neutral'}>{label(strength?.USD)}</Pill></div>

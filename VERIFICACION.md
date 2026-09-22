@@ -1,5 +1,12 @@
 # Verificación — MT5 Live
 
+## Integridad del contexto 6E — 22 de septiembre de 2026
+
+- El círculo se rotula explícitamente `6E · CONTEXTO FX PARCIAL`; GC/CL son cotizaciones, no votos direccionales para 6E.
+- El cálculo FX también comprueba la antigüedad de las observaciones y de la última lectura. El EUR/USD del cintillo superior se oculta si no llega una cotización MT5 live reciente.
+- La captura del usuario mostró GC reciente, CL antiguo, 6E no verificado y FX sin cobertura completa. No se dedujo una señal ni una probabilidad de esa mezcla.
+- `npm test`: 53/53 pruebas aprobadas. `npm run build`: compilación de producción correcta. No se verificó contra las cuentas o fuentes reales del usuario desde este entorno.
+
 ## Indicador circular del Engine General — 22 de septiembre de 2026
 
 - Se agregó un círculo grande con `6E` en el centro. Muestra el balance FX de doce cruces en escala 0–100, con 50 como equilibrio. La dirección textual del contexto permanece separada de ese número.

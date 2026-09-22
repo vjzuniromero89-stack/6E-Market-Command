@@ -6,12 +6,12 @@ import { calculateStrengths } from '../lib/timeframes.mjs';
 const now = Date.parse('2026-09-22T20:00:00Z');
 const market = { source:'MT5 / FOREX.com', mode:'live' };
 const basket = (rising, falling) => ({ rising, falling, neutral:6-rising-falling, count:6,
-  asOf:'2026-09-22T19:59:00Z', reference:'2026-09-22T18:59:00Z', period:'1h' });
+  asOf:'2026-09-22T19:59:55Z', reference:'2026-09-22T18:59:00Z', period:'1h' });
 
 test('EUR/USD alone cannot move either independent basket', () => {
   const symbols = ['EUR/USD','GBP/USD','AUD/USD','NZD/USD','USD/JPY','USD/CHF','USD/CAD',
     'EUR/GBP','EUR/JPY','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD'];
-  const quotes = symbols.map(symbol => ({ symbol, status:'fresh', asOf:'2026-09-22T19:59:00Z',
+  const quotes = symbols.map(symbol => ({ symbol, status:'fresh', asOf:'2026-09-22T19:59:55Z',
     changes:{ '1h':symbol === 'EUR/USD' ? 0.1 : 0 }, references:{ '1h':'2026-09-22T18:59:00Z' } }));
   const strength = calculateStrengths(quotes, '1h');
   assert.equal(strength.EUR_EX_USD.score, 50);
@@ -53,6 +53,12 @@ test('demo and historical FX never produce a scalping bias', () => {
   const strength = { EUR_EX_USD:basket(5,1), USD_EX_EUR:basket(1,5) };
   assert.equal(evaluateGeneralEngine({ strength, market:{ ...market, mode:'demo' }, now }).fxBias, 'unavailable');
   assert.equal(evaluateGeneralEngine({ strength, market:{ source:'Twelve Data' }, now }).fxBias, 'unavailable');
+});
+
+test('old FX observations cannot leave an active gauge even if a cached market says live', () => {
+  const strength = { EUR_EX_USD:basket(5,1), USD_EX_EUR:basket(1,5) };
+  assert.equal(evaluateGeneralEngine({ strength, market, now:now+11_000 }).fxBalancePercent, null);
+  assert.equal(evaluateGeneralEngine({ strength, market:{ ...market, fetchedAt:new Date(now-20_000).toISOString() }, now }).fxBias, 'unavailable');
 });
 
 test('live 6E and GC/CL status are checked independently without becoming votes', () => {

@@ -56,6 +56,6 @@ export default function LiveFeed({ onTokenChange = () => {} }) {
       <div><span>DELTA %</span><b>{typeof snapshot?.deltaPercent === 'number' ? `${snapshot.deltaPercent.toFixed(1)}%` : '—'}</b></div>
       <div><span>TRADES</span><b>{format(snapshot?.trades)}</b></div>
     </div>
-    <p className="feedmessage">{live ? 'Feed reciente almacenado en Supabase.' : 'No hay confirmación de datos actuales.'} DXY, Rates y Rithmic permanecen UNAVAILABLE hasta conectar un proveedor verificable; nunca se sustituyen por datos LIVE inventados.</p>
+    <p className="feedmessage">{live ? 'Feed reciente almacenado en Supabase.' : 'No hay confirmación de datos actuales.'} DXY y tasas se verifican por separado; Rithmic permanece UNAVAILABLE hasta conectar un proveedor verificable. Nunca se sustituyen por datos LIVE inventados.</p>
   </section>;
 }

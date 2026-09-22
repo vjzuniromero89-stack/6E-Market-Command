@@ -32,7 +32,7 @@ Se usa una nueva instantánea :snapshot:strength-v3, conservando las claves :coo
 
 La API exige el token de lectura habitual y evita caché HTTP pública. La API key se usa solo en servidor. Sin Redis se bloquean nuevas consultas al proveedor. Los errores del proveedor no revelan secretos y no disparan reintentos inmediatos. El ZIP no contiene .env, claves reales ni dependencias instaladas.
 
-DXY, tasas, commodities y order flow avanzado continúan DEMO y excluidos del cálculo. Confluence sigue desactivada. Las rutas NinjaTrader, su almacenamiento y el bridge permanecen sin cambios.
+DXY, tasas, commodities y order flow avanzado quedan UNAVAILABLE hasta disponer de cotizaciones verificadas y vigentes. El catálogo puede mostrar un símbolo, pero eso no confirma acceso ni precio. Confluence sigue desactivada. Las rutas NinjaTrader, su almacenamiento y el bridge permanecen sin cambios.
 
 ## Diagnóstico
 

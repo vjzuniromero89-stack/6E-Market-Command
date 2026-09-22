@@ -10,6 +10,6 @@ export default function ProviderDiscovery({token}) {
   }
   return <section className="provider-discovery"><button onClick={run} disabled={!token||loading}>{loading?'Consultando…':'Comprobar DXY y tasas'}</button>
     {state?.error&&<p>{state.error}</p>}
-    {state?.results&&<div>{Object.entries(state.results).map(([term,items])=><div key={term}><b>{term}</b><span>{items.length?items.map(x=>`${x.symbol} — ${x.name}${x.access?' ['+x.access+']':''}`).join(' | '):'Sin resultados'}</span></div>)}</div>}
+    {state?.results&&<div><p>Coincidencias exactas del catálogo; aún falta verificar acceso al precio y antigüedad.</p>{Object.entries(state.results).map(([term,items])=><div key={term}><b>{term}</b><span>{items.length?items.map(x=>`${x.symbol} — ${x.name}${x.access?' ['+x.access+']':''}`).join(' | '):'Sin símbolo exacto'}</span></div>)}</div>}
   </section>;
 }

@@ -1,5 +1,12 @@
 # Verificación — MT5 Live
 
+## Investigación CME y corrección de vencimientos — 22 de septiembre de 2026
+
+- Se eliminó la fecha estimada de la tarjeta anterior: una regla de día laborable y hora no confirma una serie listada, su vencimiento exacto, un festivo ni el mes del futuro subyacente.
+- La tarjeta enlaza ahora calendario de vencimientos, cotizaciones, perfil de interés abierto, boletín diario de la página 39, CVOL y metodología del fixing, todos de CME. No copia valores de esas páginas ni presenta el boletín del día bursátil anterior como feed en vivo.
+- Sin cadena autorizada, las opciones siguen **SIN FEED** y sin voto direccional en el Engine General. El interés abierto no revela el signo de la gamma neta de los dealers. La ruta de datos automática requiere confirmar cobertura y derechos de uso. Ver `OPCIONES-CME.md`.
+- `npm test`: 59/59 pruebas aprobadas. `npm run build`: compilación de producción correcta. No se ha desplegado ni probado con una cadena de opciones real.
+
 ## Calendario de opciones 6E — 22 de septiembre de 2026
 
 - Se añadió una tarjeta de opciones EUU con la siguiente ventana ordinaria de días laborables a las 10:00 de Nueva York. La fecha se rotula **no confirmada**: no valida festivos, series efectivamente listadas ni el mes exacto del futuro subyacente.

@@ -9,6 +9,10 @@ export default function LiveFeed({ onTokenChange = () => {} }) {
   const [message, setMessage] = useState('Introduce tu clave de lectura para conectar.');
   const [now, setNow] = useState(0);
   useEffect(() => {
+    const saved = sessionStorage.getItem('market-command-read-token');
+    if (saved) { setToken(saved); onTokenChange(saved); setMessage('Restaurando conexión…'); }
+  }, [onTokenChange]);
+  useEffect(() => {
     if (!token) return;
     let stopped = false, timer;
     const controller = new AbortController();
@@ -36,11 +40,11 @@ export default function LiveFeed({ onTokenChange = () => {} }) {
   const latency = snapshot?.latencyMs ?? null;
   return <section className="livefeed card" aria-label="Conexión NinjaTrader">
     <div className="ct"><div><b>NINJATRADER · 6E</b><span>Lectura del gráfico volumétrico · actualización cada 5 segundos</span></div><span className={'pill ' + (live ? 'green' : 'red')}>{live ? 'RECIBIENDO DATOS' : snapshot ? 'DATOS ANTIGUOS' : 'SIN CONEXIÓN'}</span></div>
-    {!token ? <form className="connectform" onSubmit={event => { event.preventDefault(); setToken(key.trim()); onTokenChange(key.trim()); setKey(''); }}>
+    {!token ? <form className="connectform" onSubmit={event => { event.preventDefault(); const next = key.trim(); sessionStorage.setItem('market-command-read-token', next); setToken(next); onTokenChange(next); setKey(''); }}>
       <label htmlFor="readkey">Clave privada de lectura</label>
       <input id="readkey" type="password" autoComplete="off" value={key} onChange={e => setKey(e.target.value)} minLength={32} required />
       <button type="submit">Conectar</button>
-    </form> : <div className="feedmeta"><span>{snapshot?.instrument || 'Esperando NinjaTrader…'}</span><button onClick={() => { setToken(''); onTokenChange(''); setResult(null); setMessage('Conexión cerrada.'); }}>Desconectar</button></div>}
+    </form> : <div className="feedmeta"><span>{snapshot?.instrument || 'Esperando NinjaTrader…'}</span><button onClick={() => { sessionStorage.removeItem('market-command-read-token'); setToken(''); onTokenChange(''); setResult(null); setMessage('Conexión cerrada.'); }}>Desconectar</button></div>}
     <p className="feedmessage" role="status">{message || (snapshot ? `Proveedor: ${snapshot.provider} · freshness ${age} s · latencia ${latency ?? '—'} ms · barra ${snapshot.barTimeLocal || snapshot.barTimeUtc}` : 'Esperando el primer envío. Abre el gráfico con el conector activado.')}</p>
     <div className="flowgrid">
       <div><span>PRECIO 6E</span><b>{snapshot ? snapshot.price.toFixed(5) : '—'}</b></div>

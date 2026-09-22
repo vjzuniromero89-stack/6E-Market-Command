@@ -11,7 +11,10 @@ export async function GET(request) {
   try {
     const snapshot = await readLatest6E();
     return json({ ...feedStatus(snapshot), provider:snapshot?.provider || 'CME via NinjaTrader 8', snapshot, engines:unavailableEngines() });
-  } catch { return json({ error:'Supabase no está configurado o no responde.', status:'unavailable', snapshot:null }, 503); }
+  } catch (error) {
+    const diagnostic = error instanceof Error ? error.message : 'Unknown Supabase error';
+    return json({ error:`Supabase: ${diagnostic}`, status:'unavailable', snapshot:null }, 503);
+  }
 }
 
 export async function POST(request) {
@@ -23,5 +26,5 @@ export async function POST(request) {
   let snapshot;
   try { snapshot = validateSnapshot(JSON.parse(text)); } catch (error) { return json({ error:error.message }, 400); }
   try { await persistSnapshot(snapshot); return json({ ok:true, receivedAt:snapshot.receivedAt, latencyMs:snapshot.latencyMs }); }
-  catch { return json({ error:'Supabase write unavailable' }, 503); }
+  catch (error) { return json({ error:`Supabase write unavailable: ${error instanceof Error ? error.message : 'unknown error'}` }, 503); }
 }

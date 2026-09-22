@@ -9,10 +9,12 @@ const usXml = `<feed xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservi
 <entry><content><m:properties><d:NEW_DATE m:type="Edm.DateTime">2026-09-22T00:00:00</d:NEW_DATE><d:BC_2YEAR m:type="Edm.Double">3.550</d:BC_2YEAR></m:properties></content></entry>
 </feed>`;
 const deCsv = 'DATAFLOW,TIME_PERIOD,OBS_VALUE,COMMENT\n"BBSIS","2026-09-21","2.100","2,0 years"\n"BBSIS","2026-09-22","2.120","latest"\n';
+const deActualFormat = '"";BBSIS.D.I.ZAR.ZI.EUR.S1311.B.A604.R02XX.R.A.A._Z._Z.A;BBSIS_FLAGS\n"";Aus der Zinsstruktur abgeleitete Renditen;\nEinheit;PROZENT;\n2026-09-20;.;Kein Wert vorhanden\n2026-09-21;3,21;\n2026-09-22;3,20;\n';
 
 test('official 2Y parsers preserve observation dates and reject implausible or future values', () => {
   assert.deepEqual(parseTreasuryTwoYear(usXml, NOW), [{ date: '2026-09-22', value: 3.55 }, { date: '2026-09-21', value: 3.5 }]);
   assert.deepEqual(parseBundesbankTwoYear(deCsv, NOW), [{ date: '2026-09-22', value: 2.12 }, { date: '2026-09-21', value: 2.1 }]);
+  assert.deepEqual(parseBundesbankTwoYear(deActualFormat, NOW), [{ date: '2026-09-22', value: 3.2 }, { date: '2026-09-21', value: 3.21 }]);
   assert.deepEqual(parseBundesbankTwoYear('TIME_PERIOD,OBS_VALUE\n2026-09-23,2.2\n2026-09-21,999\n', NOW), []);
   assert.throws(() => parseBundesbankTwoYear('<html>blocked</html>', NOW), /columns unavailable/);
 });

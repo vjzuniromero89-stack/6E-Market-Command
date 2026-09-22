@@ -40,6 +40,18 @@ test('missing symbol/history preserves prices but prevents incomplete strength; 
   assert.equal(result.mode,'demo'); assert.equal(result.quotes[0].price,1.2);
   assert.equal(result.periods['1h'].EUR,null);assert.equal(result.quotes[1].status,'unavailable');
 });
+test('missing NZD/USD history exposes only a labeled partial USD mean, never a full USD score',()=>{
+  const data=fixture();
+  data.quotes.find(q=>q.symbol==='NZD/USD').baselines['1h']=undefined;
+  const period=presentMT5(validateMT5(data,now),now).periods['1h'];
+  assert.equal(period.USD,null);
+  assert.equal(period.USD_EX_EUR,null);
+  assert.equal(period.USD_PARTIAL.count,6);
+  assert.equal(period.USD_PARTIAL.total,7);
+  assert.ok(Number.isFinite(period.USD_PARTIAL.meanChange));
+  assert.equal(period.EUR.count,7);
+  assert.equal(period.EUR_PARTIAL,null);
+});
 test('minute and day rollovers invalidate outdated reference windows',()=>{
   const before=Date.parse('2026-09-17T23:59:59Z');
   const result=presentMT5(validateMT5(fixture(before),before),before+2000);

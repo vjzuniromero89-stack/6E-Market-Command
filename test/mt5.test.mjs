@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { validateMT5, presentMT5, targets } from '../lib/mt5.mjs';
-import { SYMBOLS } from '../lib/market-context.mjs';
+import { validateMT5, presentMT5, targets, MT5_SYMBOLS } from '../lib/mt5.mjs';
 import { POST } from '../app/api/mt5/route.js';
 import { GET } from '../app/api/market-context/route.js';
 
 const now = Date.parse('2026-09-17T12:00:20Z');
-const fixture = (time=now) => ({ schemaVersion:1, sentAt:time, connected:true, mode:'live', quotes:SYMBOLS.map(symbol=>({symbol,bid:1.2,ask:1.2002,tickAt:time-1000,baselines:Object.fromEntries(Object.entries(targets(time)).map(([p,at])=>[p,{at,price:1.19}]))})) });
+const fixture = (time=now) => ({ schemaVersion:1, sentAt:time, connected:true, mode:'live', quotes:MT5_SYMBOLS.map(symbol=>({symbol,bid:1.2,ask:1.2002,tickAt:time-1000,baselines:Object.fromEntries(Object.entries(targets(time)).map(([p,at])=>[p,{at,price:1.19}]))})) });
 const secret='m'.repeat(40), read='r'.repeat(40);
 const request=(token,body,headers={})=>new Request('https://test.invalid/api/mt5',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
 
@@ -24,7 +23,8 @@ test('MT5 prices and strength use BID, show ASK, and do not consume Twelve Data'
   assert.equal(result.source,'MT5 / FOREX.com'); assert.equal(result.pollSeconds,1);
   assert.equal(result.quotes[0].price,1.2); assert.equal(result.quotes[0].ask,1.2002);
   assert.ok(Math.abs(result.quotes[0].changes['1h']-(1.2/1.19-1)*100)<1e-10);
-  assert.equal(result.periods['1h'].EUR.score,100); assert.equal(result.periods['1h'].USD.score,50);
+  assert.equal(result.periods['1h'].EUR.score,100); assert.equal(result.periods['1h'].USD.score,43);
+  assert.equal(result.periods['1h'].USD_EX_EUR.score,50);
 });
 test('stale tick cannot be made live by a fresh heartbeat; disconnect and snapshot expiry clear strength',()=>{
   const data=fixture();data.quotes[0].tickAt=now-11000;

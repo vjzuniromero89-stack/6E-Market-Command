@@ -22,6 +22,12 @@ namespace NinjaTrader.NinjaScript.Indicators
         private DateTime lastError = DateTime.MinValue;
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
+        // Prevent NinjaTrader chart labels from rendering Endpoint/IngestToken parameters.
+        public override string DisplayName
+        {
+            get { return Name; }
+        }
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)

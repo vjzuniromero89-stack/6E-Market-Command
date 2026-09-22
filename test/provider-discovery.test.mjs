@@ -5,13 +5,20 @@ import { GET } from '../app/api/provider-discovery/route.js';
 
 test('provider discovery uses fixed searches, sanitizes output and never returns API key',async()=>{
   const key='private-provider-key'; const seen=[];
-  const result=await discoverTwelveData(key,async url=>{
+  const result=await discoverTwelveData(key,async (url,options)=>{
     seen.push(url); assert.equal(url.searchParams.get('apikey'),key);
+    assert.equal(options.redirect,'manual');
     return Response.json({status:'ok',data:[{symbol:url.searchParams.get('symbol'),instrument_name:'Verified instrument',exchange:'TEST',instrument_type:'Index',access:{plan:'Basic'},secret:key}]});
   });
   assert.deepEqual(seen.map(url=>url.searchParams.get('symbol')),DISCOVERY_TERMS);
   assert.doesNotMatch(JSON.stringify(result),new RegExp(key));
   assert.equal(result.results.DXY[0].name,'Verified instrument');
+});
+
+test('provider redirects and errors fail without revealing the API key',async()=>{
+  const key='private-provider-key';
+  await assert.rejects(discoverTwelveData(key,async()=>new Response(null,{status:302,headers:{Location:'https://example.invalid'}})),/redirigió/);
+  await assert.rejects(discoverTwelveData(key,async()=>Response.json({status:'error',message:key})),error=>!String(error).includes(key));
 });
 
 test('provider discovery route requires dashboard authentication',async()=>{

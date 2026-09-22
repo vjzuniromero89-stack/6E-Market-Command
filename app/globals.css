@@ -7,3 +7,18 @@
 .centered-track{height:7px;position:relative;margin:12px 0;background:#182a3e}.centered-track .center-marker{position:absolute;left:50%;top:-5px;width:2px;height:17px;background:#b5c8dc;border-radius:2px;transform:translateX(-50%)}.centered-track .centered-fill{position:absolute;top:0;height:100%;border-radius:5px}.centered-track .down-fill,.centered-track .down-marker{background:#f16c77}.centered-track .up-fill,.centered-track .up-marker{background:#40d7aa}.centered-track .score-marker{position:absolute;top:50%;width:11px;height:11px;border:2px solid #0c1929;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #dbe7f766}.centered-track .neutral-marker{background:#c1d3e8}
 .provider-discovery>div>div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;border-top:1px solid #1b2c43}.provider-discovery b{width:auto}.provider-discovery span{min-width:0;overflow-wrap:anywhere}
 .strength-detail{min-height:38px}
+.generalGauge{flex:0 0 330px;max-width:100%;padding:18px 18px 16px;background:linear-gradient(150deg,#10283a,#0a192a);border:1px solid #31516a;border-radius:16px;text-align:center;box-shadow:0 14px 38px #0005}
+.generalGaugeHeading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#dfefff;font-size:12px;letter-spacing:.04em;text-align:left}
+.generalGaugeHeading span{color:#9bb3cb;font-size:12px;white-space:nowrap}
+.generalGaugeRing{width:218px;height:218px;margin:15px auto 10px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gauge-color) var(--gauge-progress),#1b3046 0);box-shadow:0 0 0 1px #42678666,0 0 34px #34d3ac18}
+.generalGaugeCore{width:191px;height:191px;border-radius:50%;background:#0b1a2a;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #29445d}
+.generalGaugeCore span{font-size:31px;font-weight:850;letter-spacing:.08em;color:#fff}
+.generalGaugeCore strong{font-size:39px;line-height:1.15;color:#eaf5ff;font-variant-numeric:tabular-nums}
+.generalGaugeCore small{font-size:13px;color:#a8bfd6}
+.generalGaugeStatus{display:block;font-size:14px;letter-spacing:.04em;color:#dbeafa}
+.generalGaugeScale{display:flex;justify-content:space-between;gap:4px;margin-top:11px;color:#a2b8ce;font-size:11px}
+.generalGauge p{margin:12px auto!important;color:#bdd0e2!important;font-size:13px!important;line-height:1.5;max-width:290px!important}
+.generalGaugeSources{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.generalGaugeSources span{padding:5px 7px;background:#152b40;border:1px solid #27445c;border-radius:5px;color:#a8c0d7;font-size:10px}
+@media(max-width:900px){.generalGauge{flex-basis:300px}.generalGaugeRing{width:190px;height:190px}.generalGaugeCore{width:165px;height:165px}}
+@media(max-width:600px){.generalGauge{width:100%;flex-basis:auto}.generalGaugeRing{width:218px;height:218px}.generalGaugeCore{width:191px;height:191px}}

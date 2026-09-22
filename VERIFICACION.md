@@ -1,5 +1,11 @@
 # Verificación — MT5 Live
 
+## Indicador circular del Engine General — 22 de septiembre de 2026
+
+- Se agregó un círculo grande con `6E` en el centro. Muestra el balance FX de doce cruces en escala 0–100, con 50 como equilibrio. La dirección textual del contexto permanece separada de ese número.
+- El porcentaje no es probabilidad de subida/bajada, ni mide todavía todos los motores; 6E, tasas, GC/CL y Bookmap aparecen como estados sin votos direccionales. Cuando faltan o caducan cruces FX live, se muestra `—`.
+- `npm test`: 52/52 pruebas aprobadas. `npm run build`: compilación de producción correcta. El servidor local respondió HTTP 200 y entregó la estructura del círculo. La captura visual automatizada no pudo completarse en este entorno; queda pendiente verificar la apariencia y los datos con la cuenta real tras el despliegue.
+
 ## Primera etapa del Engine General — 22 de septiembre de 2026
 
 - El sesgo FX usa exclusivamente seis cruces EUR sin EUR/USD y seis cruces USD sin EUR/USD, con la misma ventana y cierre. Solo MT5 en cuenta live puede producirlo; cuenta demo, Twelve Data, cobertura incompleta y ventanas desalineadas producen `SIN DATOS`.

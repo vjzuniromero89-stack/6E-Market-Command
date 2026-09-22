@@ -24,6 +24,8 @@ test('aligned independent breadth can describe an upward FX bias but never a tra
   assert.equal(result.fxBias, 'up');
   assert.equal(result.eur.net, 4);
   assert.equal(result.usd.net, -4);
+  assert.equal(result.fxBalancePercent, 83);
+  assert.equal(result.alignmentBasis, 12);
   assert.equal(result.probability, null);
   assert.equal(result.entrySignal, false);
 });
@@ -31,17 +33,20 @@ test('aligned independent breadth can describe an upward FX bias but never a tra
 test('opposite independent breadth describes downward FX bias', () => {
   const result = evaluateGeneralEngine({ strength:{ EUR_EX_USD:basket(1,5), USD_EX_EUR:basket(5,1) }, market, now });
   assert.equal(result.fxBias, 'down');
+  assert.equal(result.fxBalancePercent, 17);
 });
 
 test('conflicting breadth is mixed, not a forced direction', () => {
   const result = evaluateGeneralEngine({ strength:{ EUR_EX_USD:basket(5,1), USD_EX_EUR:basket(5,1) }, market, now });
   assert.equal(result.fxBias, 'mixed');
+  assert.equal(result.fxBalancePercent, 50);
 });
 
 test('missing or misaligned basket fails closed', () => {
   const usd = basket(1,5);
   assert.equal(evaluateGeneralEngine({ strength:{ EUR_EX_USD:basket(5,1) }, market, now }).fxBias, 'unavailable');
   assert.equal(evaluateGeneralEngine({ strength:{ EUR_EX_USD:basket(5,1), USD_EX_EUR:{ ...usd, asOf:'2026-09-22T19:58:00Z' } }, market, now }).fxBias, 'unavailable');
+  assert.equal(evaluateGeneralEngine({ strength:{ EUR_EX_USD:basket(5,1) }, market, now }).fxBalancePercent, null);
 });
 
 test('demo and historical FX never produce a scalping bias', () => {

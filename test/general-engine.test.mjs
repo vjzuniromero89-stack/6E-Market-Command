@@ -73,3 +73,30 @@ test('live 6E and GC/CL status are checked independently without becoming votes'
   assert.equal(result.fxBias, 'unavailable');
   assert.equal(result.entrySignal, false);
 });
+
+test('the direct 6E bar percentage follows verified live price, not FX breadth or GC/CL', () => {
+  const snapshot = { instrument:'6E DEC26', sentAt:new Date(now-5_000).toISOString(), open:1.15000, price:1.15010 };
+  const inputs = { now, ninja:{ status:'live', snapshot } };
+  const rising = evaluateGeneralEngine(inputs);
+  assert.equal(rising.sixEDirection, 'up');
+  assert.ok(Math.abs(rising.sixEChangePercent - (1.15010 / 1.15000 - 1) * 100) < 1e-12);
+  assert.equal(rising.fxBalancePercent, null);
+  assert.equal(rising.probability, null);
+  assert.equal(rising.entrySignal, false);
+  const falling = evaluateGeneralEngine({ ...inputs, ninja:{ status:'live', snapshot:{ ...snapshot, price:1.14990 } } });
+  assert.equal(falling.sixEDirection, 'down');
+  assert.ok(falling.sixEChangePercent < 0);
+  const flat = evaluateGeneralEngine({ ...inputs, ninja:{ status:'live', snapshot:{ ...snapshot, price:snapshot.open } } });
+  assert.equal(flat.sixEDirection, 'flat');
+  assert.equal(flat.sixEChangePercent, 0);
+});
+
+test('old or invalid 6E data clears the direct percent even while other engines have prices', () => {
+  const snapshot = { instrument:'6E DEC26', sentAt:new Date(now-21_000).toISOString(), open:1.15, price:1.16 };
+  const result = evaluateGeneralEngine({ now, ninja:{ status:'live', snapshot },
+    intermarket:{ quotes:{ GC:{ status:'live', price:4000, asOf:new Date(now-2_000).toISOString() } } } });
+  assert.equal(result.sixEDirection, 'unavailable');
+  assert.equal(result.sixEChangePercent, null);
+  assert.deepEqual(result.intermarketLive, ['GC']);
+  assert.equal(evaluateGeneralEngine({ now, ninja:{ status:'live', snapshot:{ ...snapshot, sentAt:new Date(now-1_000).toISOString(), open:0 } } }).sixEChangePercent, null);
+});

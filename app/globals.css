@@ -11,11 +11,14 @@
 .generalGaugeHeading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#dfefff;font-size:12px;letter-spacing:.04em;text-align:left}
 .generalGaugeHeading span{color:#9bb3cb;font-size:12px;white-space:nowrap}
 .generalGaugeRing{width:218px;height:218px;margin:15px auto 10px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gauge-color) var(--gauge-progress),#1b3046 0);box-shadow:0 0 0 1px #42678666,0 0 34px #34d3ac18}
+.generalGaugeActive{box-shadow:0 0 0 1px var(--gauge-color),0 0 27px color-mix(in srgb,var(--gauge-color) 38%,transparent)}
 .generalGaugeCore{width:191px;height:191px;border-radius:50%;background:#0b1a2a;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #29445d}
 .generalGaugeCore span{font-size:31px;font-weight:850;letter-spacing:.08em;color:#fff}
 .generalGaugeCore strong{font-size:39px;line-height:1.15;color:#eaf5ff;font-variant-numeric:tabular-nums}
 .generalGaugeCore small{font-size:13px;color:#a8bfd6}
 .generalGaugeStatus{display:block;font-size:14px;letter-spacing:.04em;color:#dbeafa}
+.generalGaugeFx{display:flex;justify-content:space-between;gap:10px;margin-top:14px;padding:10px 0;border-top:1px solid #29445d;border-bottom:1px solid #29445d;color:#a8bfd6;font-size:12px;text-align:left}
+.generalGaugeFx b{color:#dbeafa;text-align:right}
 .generalGaugeScale{display:flex;justify-content:space-between;gap:4px;margin-top:11px;color:#a2b8ce;font-size:11px}
 .generalGauge p{margin:12px auto!important;color:#bdd0e2!important;font-size:13px!important;line-height:1.5;max-width:290px!important}
 .generalGaugeSources{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}

@@ -28,18 +28,19 @@ function Pill({children,tone='neutral'}){return <span className={'pill '+tone}>{
 function Pair({p}){return <div className="pair"><div><b>{p[0]}</b><span>{p[1]}</span></div><div className="pairR"><strong>{p[2]}</strong><em className={p[4]}>{p[3]}</em></div></div>}
 function Meter({label,value,sub}){const score=Number.isFinite(value)?Math.max(0,Math.min(100,value)):null;return <div className="meter"><div className="meterTop"><span>{label}</span><b>{score===null?'—':score+'%'}</b></div><div className="track centered-track" role="img" aria-label={`${label}: ${score===null?'sin datos':score+'%; 50% es equilibrio'}`}><i className="center-marker"/><i className={score===null?'':'centered-fill '+(score<50?'down-fill':score>50?'up-fill':'')} style={score===null?undefined:{left:Math.min(score,50)+'%',width:Math.abs(score-50)+'%'}}/><i className={score===null?'':'score-marker '+(score<50?'down-marker':score>50?'up-marker':'neutral-marker')} style={score===null?undefined:{left:score+'%'}}/></div><small>{sub}</small></div>}
 function GeneralGauge({general,period}) {
-  const value = general.fxBalancePercent;
+  const value = general.sixEChangePercent;
   const hasValue = Number.isFinite(value);
-  const tone = general.fxBias === 'up' ? '#40d7aa' : general.fxBias === 'down' ? '#f16c77' : '#a8bdd4';
-  const status = {up:'CONTEXTO ALCISTA',down:'CONTEXTO BAJISTA',mixed:'CONTEXTO MIXTO',unavailable:'SIN DATOS FX'}[general.fxBias];
-  return <aside className="generalGauge" aria-label="Contexto FX parcial para 6E">
-    <div className="generalGaugeHeading"><b>6E · CONTEXTO FX PARCIAL</b><span>{periodLabels[period]}</span></div>
-    <div className="generalGaugeRing" role="img" aria-label={hasValue ? `6E: balance de cruces FX ${value} por ciento hacia subida; ${status.toLowerCase()}; no es probabilidad` : '6E: sin balance FX verificable'} style={{'--gauge-color':tone,'--gauge-progress':`${hasValue ? value : 0}%`}}>
-      <div className="generalGaugeCore"><span>6E</span><strong>{hasValue ? `${value}%` : '—'}</strong><small>FX hacia subida</small></div>
+  const tone = general.sixEDirection === 'up' ? '#40d7aa' : general.sixEDirection === 'down' ? '#f16c77' : '#a8bdd4';
+  const status = {up:'▲ SUBIENDO ESTA BARRA',down:'▼ BAJANDO ESTA BARRA',flat:'SIN CAMBIO ESTA BARRA',unavailable:'ESPERANDO 6E RECIENTE'}[general.sixEDirection];
+  const changeLabel = hasValue ? `${value > 0 ? '+' : ''}${value.toFixed(3)}%` : '—';
+  return <aside className="generalGauge" aria-label="Movimiento actual del futuro 6E">
+    <div className="generalGaugeHeading"><b>6E · MOVIMIENTO DIRECTO</b><span>barra del gráfico</span></div>
+    <div className={'generalGaugeRing'+(hasValue?' generalGaugeActive':'')} role="img" aria-label={hasValue ? `6E ${status.toLowerCase()}: ${changeLabel} desde la apertura de la barra actual; no es probabilidad` : '6E: sin cotización reciente verificada'} style={{'--gauge-color':tone,'--gauge-progress':`${hasValue ? 100 : 0}%`}}>
+      <div className="generalGaugeCore"><span>6E</span><strong style={{color:tone}}>{changeLabel}</strong><small>vs apertura de la barra</small></div>
     </div>
-    <strong className="generalGaugeStatus">{status}</strong>
-    <div className="generalGaugeScale"><span>0 · FX bajista</span><span>50 · equilibrio</span><span>100 · FX alcista</span></div>
-    <p>Balance de 12 cruces EUR y USD, sin contar EUR/USD dos veces. No es probabilidad ni señal de entrada.</p>
+    <strong className="generalGaugeStatus" style={{color:tone}}>{status}</strong>
+    <div className="generalGaugeFx"><span>Contexto FX · {periodLabels[period]}</span><b>{Number.isFinite(general.fxBalancePercent)?`${general.fxBalancePercent}% hacia subida`:'SIN DATOS'}</b></div>
+    <p>El círculo mide solo el cambio de precio de la barra 6E. El balance FX va aparte. Ninguno es probabilidad ni señal de entrada.</p>
     <div className="generalGaugeSources"><span>6E {general.ninjaLive?'RECIENTE':'NO VERIFICADO'}</span><span>TASAS {general.ratesDaily?'DIARIAS':'SIN DATOS'}</span><span>GC/CL {general.intermarketLive.length}/2</span><span>BOOKMAP BLOQUEADO</span></div>
   </aside>;
 }

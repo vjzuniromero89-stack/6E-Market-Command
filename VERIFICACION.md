@@ -1,5 +1,12 @@
 # Verificación — MT5 Live
 
+## Círculo 6E directo — 22 de septiembre de 2026
+
+- El porcentaje central se calcula del precio 6E recibido frente a la apertura de la barra actual del mismo gráfico NinjaTrader. Verde indica precio por encima; rojo, por debajo; neutro, igual. El balance FX 0–100 permanece separado.
+- El cálculo requiere una observación 6E reciente y verificada. Si faltan datos o el envío supera los 20 segundos, el círculo muestra `—`; ni GC/CL ni el EUR/USD spot rellenan ese hueco.
+- Actualización de la pantalla: consulta NinjaTrader cada cinco segundos, sujeta a ticks, envío y red. El porcentaje no es probabilidad, pronóstico ni señal de entrada.
+- `npm test`: 55/55 pruebas aprobadas. `npm run build`: compilación de producción correcta. No se confirmó el flujo con la cuenta NinjaTrader real del usuario desde este entorno.
+
 ## Integridad del contexto 6E — 22 de septiembre de 2026
 
 - El círculo se rotula explícitamente `6E · CONTEXTO FX PARCIAL`; GC/CL son cotizaciones, no votos direccionales para 6E.

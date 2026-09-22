@@ -1,0 +1,8 @@
+'use client';
+import {useEffect,useMemo,useState} from 'react';
+export default function MarketChart({token}){
+ const [rows,setRows]=useState([]),[status,setStatus]=useState('waiting');
+ useEffect(()=>{if(!token)return;let stop=false,t;const poll=async()=>{try{const r=await fetch('/api/ninjatrader',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});const j=await r.json();if(j.snapshot&&!stop){setRows(x=>[...x,{t:Date.now(),p:j.snapshot.price,d:j.snapshot.barDelta}].slice(-120));setStatus(j.status)}}catch{};if(!stop)t=setTimeout(poll,5000)};poll();return()=>{stop=true;clearTimeout(t)}},[token]);
+ const path=useMemo(()=>{if(rows.length<2)return'';const ps=rows.map(x=>x.p),lo=Math.min(...ps),hi=Math.max(...ps),span=hi-lo||.0001;return rows.map((x,i)=>`${i?'L':'M'} ${20+i*(960/(rows.length-1))} ${250-(x.p-lo)/span*200}`).join(' ')},[rows]);
+ return <section className="card chartcard"><div className="ct"><div><b>6E LIVE CHART</b><span>Gráfico propio · listo para TradingView Advanced Charts cuando tengamos licencia</span></div><span className={'pill '+(status==='live'?'green':'red')}>{status.toUpperCase()}</span></div><div className="charttoolbar"><b>6E</b><span>5s stream</span><span>Price + order-flow overlay</span></div><div className="chartarea">{rows.length>1?<svg viewBox="0 0 1000 280" preserveAspectRatio="none"><g className="gridlines"><path d="M0 50H1000M0 100H1000M0 150H1000M0 200H1000M0 250H1000"/></g><path className="pricepath" d={path}/></svg>:<div className="chartempty">Conecta NinjaTrader para comenzar a construir el gráfico 6E en vivo.</div>}</div></section>
+}

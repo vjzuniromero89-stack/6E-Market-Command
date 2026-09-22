@@ -4,14 +4,14 @@
 
 input string DashboardEndpoint="https://YOUR-PROJECT.vercel.app/api/mt5";
 input string IngestToken="";
-input string BrokerSymbols="EURUSD,GBPUSD,AUDUSD,USDJPY,USDCHF,USDCAD,EURGBP,EURJPY";
+input string BrokerSymbols="EURUSD,GBPUSD,AUDUSD,NZDUSD,USDJPY,USDCHF,USDCAD,EURGBP,EURJPY,EURCHF,EURCAD,EURAUD,EURNZD";
 input int ServerUTCOffsetMinutes=9999; // 9999 = infer current broker offset from synchronized Windows clock
 input int RequestTimeoutMs=1500;
 
-string canonical[8]={"EUR/USD","GBP/USD","AUD/USD","USD/JPY","USD/CHF","USD/CAD","EUR/GBP","EUR/JPY"};
+string canonical[13]={"EUR/USD","GBP/USD","AUD/USD","NZD/USD","USD/JPY","USD/CHF","USD/CAD","EUR/GBP","EUR/JPY","EUR/CHF","EUR/CAD","EUR/AUD","EUR/NZD"};
 string symbols[];
 string periods[3]={"15m","1h","day"};
-double baseline[8][3];
+double baseline[13][3];
 datetime refUTC[3];
 datetime lastMinute=0;
 long lastOffset=999999;
@@ -37,8 +37,8 @@ int OnInit() {
   }
   if(RequestTimeoutMs<250 || RequestTimeoutMs>5000) return INIT_PARAMETERS_INCORRECT;
   if(ServerUTCOffsetMinutes!=9999 && (ServerUTCOffsetMinutes < -840 || ServerUTCOffsetMinutes > 840)) return INIT_PARAMETERS_INCORRECT;
-  if(StringSplit(BrokerSymbols,',',symbols)!=8) { Print("Provide exactly eight symbols in the documented order."); return INIT_PARAMETERS_INCORRECT; }
-  for(int i=0;i<8;i++) {
+  if(StringSplit(BrokerSymbols,',',symbols)!=13) { Print("Provide exactly thirteen symbols in the documented order."); return INIT_PARAMETERS_INCORRECT; }
+  for(int i=0;i<13;i++) {
     StringTrimLeft(symbols[i]); StringTrimRight(symbols[i]);
     if(!SymbolSelect(symbols[i],true)) Print("Symbol unavailable: ",symbols[i],". Check Market Watch symbol spelling.");
     for(int j=0;j<3;j++) baseline[i][j]=0;
@@ -77,7 +77,7 @@ void OnTimer() {
   if(minute!=lastMinute || offset!=lastOffset) {
     refUTC[0]=minute-15*60; refUTC[1]=minute-60*60; refUTC[2]=(datetime)(((long)utc/86400)*86400);
     // History loading may block briefly; performed once a minute, outside order processing.
-    for(int i=0;i<8;i++) for(int j=0;j<3;j++) baseline[i][j]=ReferencePrice(symbols[i],refUTC[j],minute,offset);
+    for(int i=0;i<13;i++) for(int j=0;j<3;j++) baseline[i][j]=ReferencePrice(symbols[i],refUTC[j],minute,offset);
     lastMinute=minute; lastOffset=offset;
   }
   // History retrieval can take time. Discard this cycle if its references became outdated.
@@ -86,7 +86,7 @@ void OnTimer() {
   string mode=AccountInfoInteger(ACCOUNT_TRADE_MODE)==ACCOUNT_TRADE_MODE_REAL ? "live" : "demo";
   string body="{\"schemaVersion\":1,\"sentAt\":"+N((long)utc*1000)+",\"connected\":true,\"mode\":\""+mode+"\",\"quotes\":[";
   int valid=0;
-  for(int i=0;i<8;i++) {
+  for(int i=0;i<13;i++) {
     if(i>0) body+=",";
     body+="{\"symbol\":\""+canonical[i]+"\"";
     MqlTick tick;
@@ -114,7 +114,7 @@ void OnTimer() {
   int status=WebRequest("POST",DashboardEndpoint,headers,RequestTimeoutMs,payload,response,responseHeaders);
   if(status==200) {
     failures=0; nextAttempt=0;
-    Comment("MarketCommandFX: sent | ",valid,"/8 recent quotes | ",mode," | target 1 second\nNo trading operations. Strength needs M1 history.");
+    Comment("MarketCommandFX: sent | ",valid,"/13 recent quotes | ",mode," | target 1 second\nNo trading operations. Strength needs M1 history.");
   } else {
     failures++;
     int waitSeconds=(int)MathMin(30,MathPow(2,MathMin(failures,5)));

@@ -20,7 +20,10 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  if (!authorized(request, process.env.NINJATRADER_INGEST_TOKEN)) return json({ error: 'Unauthorized' }, 401);
+  // Keep GC/CL credentials independent of the already-working 6E connector.
+  // Existing installations can still use the 6E key until a dedicated key is set.
+  const ingestToken = process.env.INTERMARKET_INGEST_TOKEN || process.env.NINJATRADER_INGEST_TOKEN;
+  if (!authorized(request, ingestToken)) return json({ error: 'Unauthorized' }, 401);
   if (!request.headers.get('content-type')?.startsWith('application/json')) return json({ error: 'Expected JSON' }, 415);
   let body;
   try { body = await request.text(); } catch { return json({ error: 'Invalid body' }, 400); }

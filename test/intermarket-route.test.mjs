@@ -15,9 +15,11 @@ test('GC ingest uses the existing private tables and read endpoint hides missing
   const previousFetch = globalThis.fetch;
   const previous = {
     ingest: process.env.NINJATRADER_INGEST_TOKEN, read: process.env.DASHBOARD_READ_TOKEN,
+    intermarket: process.env.INTERMARKET_INGEST_TOKEN,
     url: process.env.NEXT_PUBLIC_SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY,
   };
   process.env.NINJATRADER_INGEST_TOKEN = ingest;
+  delete process.env.INTERMARKET_INGEST_TOKEN;
   process.env.DASHBOARD_READ_TOKEN = read;
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://database.test';
   process.env.SUPABASE_SECRET_KEY = 'sb_secret_test';
@@ -56,8 +58,27 @@ test('GC ingest uses the existing private tables and read endpoint hides missing
   } finally {
     globalThis.fetch = previousFetch;
     for (const [key, value] of Object.entries({
-      NINJATRADER_INGEST_TOKEN: previous.ingest, DASHBOARD_READ_TOKEN: previous.read,
+      NINJATRADER_INGEST_TOKEN: previous.ingest, INTERMARKET_INGEST_TOKEN: previous.intermarket,
+      DASHBOARD_READ_TOKEN: previous.read,
       NEXT_PUBLIC_SUPABASE_URL: previous.url, SUPABASE_SECRET_KEY: previous.key,
+    })) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
+});
+
+test('dedicated intermarket key does not change the 6E key', async () => {
+  const previous = {
+    ingest: process.env.NINJATRADER_INGEST_TOKEN,
+    intermarket: process.env.INTERMARKET_INGEST_TOKEN,
+  };
+  const dedicated = 'g'.repeat(40);
+  process.env.NINJATRADER_INGEST_TOKEN = ingest;
+  process.env.INTERMARKET_INGEST_TOKEN = dedicated;
+  try {
+    assert.equal((await POST(request(ingest, {}))).status, 401);
+    assert.equal((await POST(request(dedicated, {}))).status, 400);
+  } finally {
+    for (const [key, value] of Object.entries({
+      NINJATRADER_INGEST_TOKEN: previous.ingest, INTERMARKET_INGEST_TOKEN: previous.intermarket,
     })) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
   }
 });

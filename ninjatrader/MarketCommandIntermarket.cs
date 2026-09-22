@@ -20,6 +20,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         private bool warned;
         private DateTime lastAttempt = DateTime.MinValue;
         private DateTime lastError = DateTime.MinValue;
+        private bool reportedConnection;
         private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
         public override string DisplayName { get { return Name; } }
@@ -41,6 +42,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 stopped = false;
                 warned = false;
+                reportedConnection = false;
             }
             else if (State == State.Terminated)
                 stopped = true;
@@ -76,7 +78,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                     + ",\"close\":" + Close[0].ToString("R", Inv) + "}";
                 string target = Endpoint;
                 string secret = IngestToken;
-                Task.Run(() => Send(target, secret, payload));
+                Task.Run(() => Send(target, secret, payload, root));
             }
             catch
             {
@@ -85,7 +87,7 @@ namespace NinjaTrader.NinjaScript.Indicators
             }
         }
 
-        private void Send(string target, string secret, string payload)
+        private void Send(string target, string secret, string payload, string root)
         {
             try
             {
@@ -102,13 +104,18 @@ namespace NinjaTrader.NinjaScript.Indicators
                 using (Stream stream = request.GetRequestStream()) stream.Write(bytes, 0, bytes.Length);
                 using (var response = (HttpWebResponse)request.GetResponse())
                 {
-                    if ((int)response.StatusCode != 200) ReportError("HTTP " + (int)response.StatusCode + ". Check endpoint and Cloudflare settings.");
+                    if ((int)response.StatusCode != 200) ReportError(root + ": HTTP " + (int)response.StatusCode + " at " + new Uri(target).AbsolutePath + ".");
+                    else if (!reportedConnection)
+                    {
+                        reportedConnection = true;
+                        Print("MarketCommandIntermarket " + root + ": connected (HTTP 200).");
+                    }
                 }
             }
             catch (WebException error)
             {
                 var response = error.Response as HttpWebResponse;
-                ReportError(response == null ? "Network failure or timeout." : "HTTP " + (int)response.StatusCode + ". Check endpoint, key and storage.");
+                ReportError(response == null ? root + ": network failure or timeout." : root + ": HTTP " + (int)response.StatusCode + " at " + new Uri(target).AbsolutePath + ".");
                 if (response != null) response.Dispose();
             }
             catch { ReportError("Send failed. Check connector configuration."); }

@@ -33,6 +33,7 @@ export default function LiveFeed({ onTokenChange = () => {} }) {
   const snapshot = result?.snapshot;
   const age = snapshot ? Math.max(0, Math.floor((now - Date.parse(snapshot.sentAt)) / 1000)) : null;
   const live = result?.status === 'live' && age !== null && age < 20;
+  const latency = snapshot?.latencyMs ?? null;
   return <section className="livefeed card" aria-label="Conexión NinjaTrader">
     <div className="ct"><div><b>NINJATRADER · 6E</b><span>Lectura del gráfico volumétrico · actualización cada 5 segundos</span></div><span className={'pill ' + (live ? 'green' : 'red')}>{live ? 'RECIBIENDO DATOS' : snapshot ? 'DATOS ANTIGUOS' : 'SIN CONEXIÓN'}</span></div>
     {!token ? <form className="connectform" onSubmit={event => { event.preventDefault(); setToken(key.trim()); onTokenChange(key.trim()); setKey(''); }}>
@@ -40,13 +41,17 @@ export default function LiveFeed({ onTokenChange = () => {} }) {
       <input id="readkey" type="password" autoComplete="off" value={key} onChange={e => setKey(e.target.value)} minLength={32} required />
       <button type="submit">Conectar</button>
     </form> : <div className="feedmeta"><span>{snapshot?.instrument || 'Esperando NinjaTrader…'}</span><button onClick={() => { setToken(''); onTokenChange(''); setResult(null); setMessage('Conexión cerrada.'); }}>Desconectar</button></div>}
-    <p className="feedmessage" role="status">{message || (snapshot ? `Último envío hace ${age} s · barra ${snapshot.barTime} (hora del gráfico)` : 'Esperando el primer envío. Abre el gráfico con el conector activado.')}</p>
+    <p className="feedmessage" role="status">{message || (snapshot ? `Proveedor: ${snapshot.provider} · freshness ${age} s · latencia ${latency ?? '—'} ms · barra ${snapshot.barTimeLocal || snapshot.barTimeUtc}` : 'Esperando el primer envío. Abre el gráfico con el conector activado.')}</p>
     <div className="flowgrid">
       <div><span>PRECIO 6E</span><b>{snapshot ? snapshot.price.toFixed(5) : '—'}</b></div>
+      <div><span>OHLC</span><b>{snapshot ? `${snapshot.open.toFixed(5)} / ${snapshot.high.toFixed(5)} / ${snapshot.low.toFixed(5)} / ${snapshot.close.toFixed(5)}` : '—'}</b></div>
       <div><span>VOLUMEN DE BARRA</span><b>{format(snapshot?.barVolume)}</b></div>
+      <div><span>BID / ASK VOL</span><b>{snapshot ? `${format(snapshot.bidVolume)} / ${format(snapshot.askVolume)}` : '—'}</b></div>
       <div><span>DELTA DE BARRA</span><b>{format(snapshot?.barDelta)}</b></div>
       <div><span>DELTA ACUMULADO</span><b>{format(snapshot?.cumulativeDelta)}</b></div>
+      <div><span>DELTA %</span><b>{typeof snapshot?.deltaPercent === 'number' ? `${snapshot.deltaPercent.toFixed(1)}%` : '—'}</b></div>
+      <div><span>TRADES</span><b>{format(snapshot?.trades)}</b></div>
     </div>
-    <p className="feedmessage">{live ? 'Datos del gráfico conectado; verifica que tu conexión de NinjaTrader sea Live.' : 'No hay confirmación de datos actuales.'} Delta según la configuración de las barras volumétricas. VWAP, POC y señales automáticas aún no conectados.</p>
+    <p className="feedmessage">{live ? 'Feed reciente almacenado en Supabase.' : 'No hay confirmación de datos actuales.'} DXY, Rates y Rithmic permanecen UNAVAILABLE hasta conectar un proveedor verificable; nunca se sustituyen por datos LIVE inventados.</p>
   </section>;
 }

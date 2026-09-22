@@ -1,4 +1,5 @@
-import { authorized, redis } from '../../../lib/feed.mjs';
+import { authorized } from '../../../lib/feed.mjs';
+import { redis } from '../../../lib/legacy-redis.mjs';
 import { validateMT5, mt5Key, STORE_MT5 } from '../../../lib/mt5.mjs';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

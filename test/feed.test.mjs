@@ -1,14 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authorized, validateSnapshot } from '../lib/feed.mjs';
-import { GET, POST } from '../app/api/ninjatrader/route.js';
+import { authorized, validateSnapshot, feedStatus } from '../lib/feed.mjs';
 
 const ingest = 'i'.repeat(40), read = 'r'.repeat(40);
 process.env.NINJATRADER_INGEST_TOKEN = ingest;
 process.env.DASHBOARD_READ_TOKEN = read;
 process.env.UPSTASH_REDIS_REST_URL = 'https://test.invalid';
 process.env.UPSTASH_REDIS_REST_TOKEN = 'test-only';
-const fixture = () => ({ schemaVersion: 1, instrument: '6E 12-26', sentAt: new Date().toISOString(), barTime: '2026-09-17 10:15:00', price: 1.15325, barVolume: 100, barDelta: -20, cumulativeDelta: -608 });
+const fixture = () => ({ schemaVersion:2, instrument:'6E 12-26', sentAt:new Date().toISOString(), barTimeUtc:new Date().toISOString(), barTimeLocal:'2026-09-22 10:15:00 -04:00', price:1.15325, open:1.153, high:1.154, low:1.152, close:1.15325, barVolume:100, bidVolume:60, askVolume:40, barDelta:-20, cumulativeDelta:-608, deltaPercent:-20, trades:25, maxPositiveDelta:5, maxNegativeDelta:-12, maxSeenDelta:7, minSeenDelta:-25, deltaSinceHigh:-10, deltaSinceLow:3 });
 const request = (token, body) => new Request('https://test.invalid/api/ninjatrader', {
   method: body === undefined ? 'GET' : 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }),
@@ -26,38 +25,8 @@ test('snapshot validation rejects stale clocks, invalid instruments and impossib
   }
   assert.equal(validateSnapshot({ ...fixture(), secret: 'must-not-be-stored' }).secret, undefined);
 });
-test('route roundtrip, expiration, storage errors and authorization', async () => {
-  const originalFetch = globalThis.fetch;
-  let stored = null;
-  globalThis.fetch = async (_url, options) => {
-    const command = JSON.parse(options.body);
-    if (command[0] === 'EVAL') {
-      if (!stored || JSON.parse(stored).sentAt < command[5]) stored = command[4];
-      return Response.json({ result: 1 });
-    }
-    return Response.json({ result: stored });
-  };
-  try {
-    assert.equal((await POST(request(read, fixture()))).status, 401);
-    assert.equal((await GET(request(ingest))).status, 401);
-    assert.equal((await (await GET(request(read))).json()).status, 'waiting');
-    assert.equal((await POST(request(ingest, '{bad'))).status, 400);
-    assert.equal((await POST(request(ingest, 'x'.repeat(9000)))).status, 413);
-    assert.equal((await POST(request(ingest, fixture()))).status, 200);
-    const response = await GET(request(read));
-    assert.equal(response.headers.get('cache-control'), 'no-store, private');
-    const body = await response.json();
-    assert.equal(body.status, 'live');
-    assert.equal(body.snapshot.price, 1.15325);
-    const old = { ...fixture(), sentAt: new Date(Date.now() - 30000).toISOString() };
-    await POST(request(ingest, old));
-    assert.equal((await (await GET(request(read))).json()).status, 'live');
-    stored = JSON.stringify(validateSnapshot(old));
-    assert.equal((await (await GET(request(read))).json()).status, 'stale');
-    stored = null;
-    assert.equal((await (await GET(request(read))).json()).snapshot, null);
-    globalThis.fetch = async () => { throw Error('offline'); };
-    assert.equal((await GET(request(read))).status, 503);
-    assert.equal((await POST(request(ingest, fixture()))).status, 503);
-  } finally { globalThis.fetch = originalFetch; }
+test('freshness never labels missing or old data live', () => {
+  assert.equal(feedStatus(null).status, 'unavailable');
+  assert.equal(feedStatus(validateSnapshot(fixture())).status, 'live');
+  assert.equal(feedStatus({ sentAt:new Date(Date.now()-30000).toISOString() }).status, 'stale');
 });

@@ -31,7 +31,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 Calculate = Calculate.OnEachTick;
                 IsOverlay = true;
                 IsSuspendedWhileInactive = false;
-                Endpoint = "https://YOUR-SITE.vercel.app/api/ninjatrader";
+                Endpoint = "https://YOUR-WORKER.workers.dev/api/ninjatrader";
                 IngestToken = "";
                 IntervalSeconds = 5;
             }
@@ -65,13 +65,28 @@ namespace NinjaTrader.NinjaScript.Indicators
             {
                 // Capture all NinjaScript data on its own update thread, before starting I/O.
                 var bar = volumetric.Volumes[CurrentBar];
-                string payload = "{\"schemaVersion\":1,\"instrument\":" + Quote(Instrument.FullName)
+                string payload = "{\"schemaVersion\":2,\"instrument\":" + Quote(Instrument.FullName)
                     + ",\"sentAt\":" + Quote(now.ToString("o", Inv))
-                    + ",\"barTime\":" + Quote(Time[0].ToString("yyyy-MM-dd HH:mm:ss", Inv))
+                    + ",\"barTimeUtc\":" + Quote(Time[0].ToUniversalTime().ToString("o", Inv))
+                    + ",\"barTimeLocal\":" + Quote(Time[0].ToString("yyyy-MM-dd HH:mm:ss zzz", Inv))
                     + ",\"price\":" + Close[0].ToString("R", Inv)
+                    + ",\"open\":" + Open[0].ToString("R", Inv)
+                    + ",\"high\":" + High[0].ToString("R", Inv)
+                    + ",\"low\":" + Low[0].ToString("R", Inv)
+                    + ",\"close\":" + Close[0].ToString("R", Inv)
                     + ",\"barVolume\":" + bar.TotalVolume.ToString(Inv)
+                    + ",\"bidVolume\":" + bar.TotalSellingVolume.ToString(Inv)
+                    + ",\"askVolume\":" + bar.TotalBuyingVolume.ToString(Inv)
                     + ",\"barDelta\":" + bar.BarDelta.ToString(Inv)
-                    + ",\"cumulativeDelta\":" + bar.CumulativeDelta.ToString(Inv) + "}";
+                    + ",\"cumulativeDelta\":" + bar.CumulativeDelta.ToString(Inv)
+                    + ",\"deltaPercent\":" + bar.GetDeltaPercent().ToString("R", Inv)
+                    + ",\"trades\":" + bar.Trades.ToString(Inv)
+                    + ",\"maxPositiveDelta\":" + bar.GetMaximumPositiveDelta().ToString(Inv)
+                    + ",\"maxNegativeDelta\":" + bar.GetMaximumNegativeDelta().ToString(Inv)
+                    + ",\"maxSeenDelta\":" + bar.MaxSeenDelta.ToString(Inv)
+                    + ",\"minSeenDelta\":" + bar.MinSeenDelta.ToString(Inv)
+                    + ",\"deltaSinceHigh\":" + bar.DeltaSh.ToString(Inv)
+                    + ",\"deltaSinceLow\":" + bar.DeltaSl.ToString(Inv) + "}";
                 string target = Endpoint;
                 string secret = IngestToken;
                 Task.Run(() => Send(target, secret, payload));
@@ -100,7 +115,7 @@ namespace NinjaTrader.NinjaScript.Indicators
                 using (Stream stream = request.GetRequestStream()) stream.Write(bytes, 0, bytes.Length);
                 using (var response = (HttpWebResponse)request.GetResponse())
                 {
-                    if ((int)response.StatusCode != 200) ReportError("HTTP " + (int)response.StatusCode + ". Check endpoint and Vercel settings.");
+                    if ((int)response.StatusCode != 200) ReportError("HTTP " + (int)response.StatusCode + ". Check endpoint and Cloudflare settings.");
                 }
             }
             catch (WebException error)

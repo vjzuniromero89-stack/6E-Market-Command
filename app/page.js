@@ -33,14 +33,21 @@ function GeneralGauge({general,period}) {
   const tone = general.sixEDirection === 'up' ? '#40d7aa' : general.sixEDirection === 'down' ? '#f16c77' : '#a8bdd4';
   const status = {up:'▲ SUBIENDO ESTA BARRA',down:'▼ BAJANDO ESTA BARRA',flat:'SIN CAMBIO ESTA BARRA',unavailable:'ESPERANDO 6E RECIENTE'}[general.sixEDirection];
   const changeLabel = hasValue ? `${value > 0 ? '+' : ''}${value.toFixed(3)}%` : '—';
-  return <aside className="generalGauge" aria-label="Movimiento actual del futuro 6E">
-    <div className="generalGaugeHeading"><b>6E · MOVIMIENTO DIRECTO</b><span>barra del gráfico</span></div>
+  const integratedText = {aligned_up:'FX y 6E coinciden al alza',aligned_down:'FX y 6E coinciden a la baja',divergent:'FX y 6E se contradicen',partial:'Lectura conjunta incompleta',unavailable:'Sin lectura conjunta'}[general.integratedState];
+  const marketNote = general.intermarketAgreement.comparable
+    ? `GC/CL en barras comparables: ${general.intermarketAgreement.same} mismo sentido, ${general.intermarketAgreement.opposite} sentido opuesto al 6E.`
+    : 'GC/CL sin barras comparables con el 6E.';
+  const moveText = root => {const move=general.intermarketMoves[root];return Number.isFinite(move.changePercent)?`${move.changePercent>0?'+':''}${move.changePercent.toFixed(3)}% ${move.alignedBar&&['up','down'].includes(general.sixEDirection)&&['up','down'].includes(move.direction)?(move.direction===general.sixEDirection?'· mismo sentido':'· sentido opuesto'):''}`:'SIN DATO RECIENTE'};
+  return <aside className="generalGauge" aria-label="Análisis conjunto del futuro 6E">
+    <div className="generalGaugeHeading"><b>6E · ENGINE GENERAL PARCIAL</b><span>datos reales</span></div>
     <div className={'generalGaugeRing'+(hasValue?' generalGaugeActive':'')} role="img" aria-label={hasValue ? `6E ${status.toLowerCase()}: ${changeLabel} desde la apertura de la barra actual; no es probabilidad` : '6E: sin cotización reciente verificada'} style={{'--gauge-color':tone,'--gauge-progress':`${hasValue ? 100 : 0}%`}}>
       <div className="generalGaugeCore"><span>6E</span><strong style={{color:tone}}>{changeLabel}</strong><small>vs apertura de la barra</small></div>
     </div>
     <strong className="generalGaugeStatus" style={{color:tone}}>{status}</strong>
+    <div className="generalGaugeIntegrated"><b>{integratedText}</b><small>{marketNote} Coincidencia observada, no pronóstico.</small></div>
     <div className="generalGaugeFx"><span>Contexto FX · {periodLabels[period]}</span><b>{Number.isFinite(general.fxBalancePercent)?`${general.fxBalancePercent}% hacia subida`:'SIN DATOS'}</b></div>
-    <p>El círculo mide solo el cambio de precio de la barra 6E. El balance FX va aparte. Ninguno es probabilidad ni señal de entrada.</p>
+    <div className="generalGaugeEvidence"><div><span>EUR ex-USD</span><b>{general.eur?`${general.eur.rising} suben · ${general.eur.falling} bajan`:'SIN DATOS'}</b></div><div><span>USD ex-EUR</span><b>{general.usd?`${general.usd.rising} suben · ${general.usd.falling} bajan`:'SIN DATOS'}</b></div><div><span>GC · oro futuro</span><b>{moveText('GC')}</b></div><div><span>CL · WTI futuro</span><b>{moveText('CL')}</b></div><div><span>US 2Y − DE 2Y</span><b>{general.rateSpread?`${general.rateSpread.value>=0?'+':''}${general.rateSpread.value.toFixed(3)} pp · diario`:'SIN DATOS'}</b></div></div>
+    <p>El porcentaje central es el cambio de la barra 6E. El análisis cruza FX y 6E; GC/CL muestran movimiento observado y las tasas son diarias. Sin correlación histórica comprobada, estos últimos no votan en la dirección. No es probabilidad ni entrada.</p>
     <div className="generalGaugeSources"><span>6E {general.ninjaLive?'RECIENTE':'NO VERIFICADO'}</span><span>TASAS {general.ratesDaily?'DIARIAS':'SIN DATOS'}</span><span>GC/CL {general.intermarketLive.length}/2</span><span>BOOKMAP BLOQUEADO</span></div>
   </aside>;
 }

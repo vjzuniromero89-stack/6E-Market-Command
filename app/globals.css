@@ -8,6 +8,7 @@
 .provider-discovery>div>div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;border-top:1px solid #1b2c43}.provider-discovery b{width:auto}.provider-discovery span{min-width:0;overflow-wrap:anywhere}
 .strength-detail{min-height:38px}
 .generalGauge{flex:0 0 330px;max-width:100%;padding:18px 18px 16px;background:linear-gradient(150deg,#10283a,#0a192a);border:1px solid #31516a;border-radius:16px;text-align:center;box-shadow:0 14px 38px #0005}
+.hero:has(.generalGauge){align-items:flex-start}
 .generalGaugeHeading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#dfefff;font-size:12px;letter-spacing:.04em;text-align:left}
 .generalGaugeHeading span{color:#9bb3cb;font-size:12px;white-space:nowrap}
 .generalGaugeRing{width:218px;height:218px;margin:15px auto 10px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gauge-color) var(--gauge-progress),#1b3046 0);box-shadow:0 0 0 1px #42678666,0 0 34px #34d3ac18}
@@ -17,8 +18,16 @@
 .generalGaugeCore strong{font-size:39px;line-height:1.15;color:#eaf5ff;font-variant-numeric:tabular-nums}
 .generalGaugeCore small{font-size:13px;color:#a8bfd6}
 .generalGaugeStatus{display:block;font-size:14px;letter-spacing:.04em;color:#dbeafa}
+.generalGaugeIntegrated{margin-top:12px;padding:10px;border:1px solid #31516a;border-radius:8px;background:#10283a;text-align:left}
+.generalGaugeIntegrated b,.generalGaugeIntegrated small{display:block}
+.generalGaugeIntegrated b{font-size:12px;color:#e7f4ff}
+.generalGaugeIntegrated small{margin-top:3px;font-size:10px;color:#9bb3cb}
 .generalGaugeFx{display:flex;justify-content:space-between;gap:10px;margin-top:14px;padding:10px 0;border-top:1px solid #29445d;border-bottom:1px solid #29445d;color:#a8bfd6;font-size:12px;text-align:left}
 .generalGaugeFx b{color:#dbeafa;text-align:right}
+.generalGaugeEvidence{margin-top:4px;text-align:left}
+.generalGaugeEvidence>div{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #29445d;font-size:10px}
+.generalGaugeEvidence span{color:#9bb3cb}
+.generalGaugeEvidence b{color:#e0eefb;text-align:right;font-weight:650}
 .generalGaugeScale{display:flex;justify-content:space-between;gap:4px;margin-top:11px;color:#a2b8ce;font-size:11px}
 .generalGauge p{margin:12px auto!important;color:#bdd0e2!important;font-size:13px!important;line-height:1.5;max-width:290px!important}
 .generalGaugeSources{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}

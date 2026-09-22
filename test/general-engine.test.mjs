@@ -100,3 +100,43 @@ test('old or invalid 6E data clears the direct percent even while other engines 
   assert.deepEqual(result.intermarketLive, ['GC']);
   assert.equal(evaluateGeneralEngine({ now, ninja:{ status:'live', snapshot:{ ...snapshot, sentAt:new Date(now-1_000).toISOString(), open:0 } } }).sixEChangePercent, null);
 });
+
+test('integrated reading detects FX and 6E agreement or divergence without assigning GC/CL a fixed sign', () => {
+  const barTimeUtc = new Date(now - 10_000).toISOString();
+  const ninja = { status:'live', snapshot:{ instrument:'6E DEC26', sentAt:new Date(now-2_000).toISOString(), barTimeUtc, open:1.15, price:1.1501 } };
+  const intermarket = { quotes:{
+    GC:{ status:'live', price:4401, open:4400, asOf:new Date(now-2_000).toISOString(), barTimeUtc },
+    CL:{ status:'live', price:69.9, open:70, asOf:new Date(now-2_000).toISOString(), barTimeUtc },
+  } };
+  const strength = { EUR_EX_USD:basket(5,1), USD_EX_EUR:basket(1,5) };
+  const aligned = evaluateGeneralEngine({ now, market, strength, ninja, intermarket,
+    rates:{ status:'daily', spread:{ value:1.51, date:'2026-09-22' } } });
+  assert.equal(aligned.integratedState, 'aligned_up');
+  assert.equal(aligned.intermarketMoves.GC.direction, 'up');
+  assert.equal(aligned.intermarketMoves.CL.direction, 'down');
+  assert.equal(aligned.intermarketMoves.GC.alignedBar, true);
+  assert.deepEqual(aligned.intermarketAgreement, { comparable:2, same:1, opposite:1 });
+  assert.deepEqual(aligned.rateSpread, { value:1.51, date:'2026-09-22' });
+  assert.equal(aligned.probability, null);
+  const divergent = evaluateGeneralEngine({ now, market, strength,
+    ninja:{ ...ninja, snapshot:{ ...ninja.snapshot, price:1.1499 } }, intermarket });
+  assert.equal(divergent.integratedState, 'divergent');
+  assert.equal(divergent.intermarketMoves.GC.direction, 'up');
+  assert.deepEqual(divergent.intermarketAgreement, { comparable:2, same:1, opposite:1 });
+});
+
+test('stale GC/CL and unmatched chart bars cannot claim current agreement', () => {
+  const result = evaluateGeneralEngine({ now,
+    ninja:{ status:'live', snapshot:{ instrument:'6E DEC26', sentAt:new Date(now-2_000).toISOString(),
+      barTimeUtc:new Date(now-70_000).toISOString(), open:1.15, price:1.1501 } },
+    intermarket:{ quotes:{
+      GC:{ status:'live', price:4401, open:4400, asOf:new Date(now-2_000).toISOString(), barTimeUtc:new Date(now-2_000).toISOString() },
+      CL:{ status:'stale', price:null, open:null, asOf:new Date(now-30_000).toISOString() },
+    } },
+  });
+  assert.equal(result.integratedState, 'partial');
+  assert.equal(result.intermarketMoves.GC.alignedBar, false);
+  assert.equal(result.intermarketMoves.CL.direction, 'unavailable');
+  assert.deepEqual(result.intermarketAgreement, { comparable:0, same:0, opposite:0 });
+  assert.equal(result.entrySignal, false);
+});

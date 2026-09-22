@@ -1,5 +1,12 @@
 # Verificación — MT5 Live
 
+## Análisis conjunto en la tarjeta 6E — 22 de septiembre de 2026
+
+- La tarjeta reúne EUR ex-USD, USD ex-EUR, movimiento directo del 6E, cambios porcentuales de las barras GC/CL y diferencial oficial US2Y–DE2Y. Si FX y la barra del 6E coinciden o divergen, lo explica textualmente.
+- GC/CL se comparan con 6E solo cuando las marcas temporales de las barras son compatibles; muestra cuántos se mueven en el mismo sentido o en el contrario. No les asigna una correlación ni un voto predictivo sin historia comparable. Las tasas siguen siendo contexto diario.
+- El porcentaje grande sigue siendo movimiento directo de la barra 6E. No hay probabilidad de dirección ni señal de entrada fabricada.
+- `npm test`: 57/57 pruebas aprobadas. `npm run build`: compilación de producción correcta. No hubo prueba con las fuentes reales del usuario ni despliegue desde este entorno.
+
 ## Círculo 6E directo — 22 de septiembre de 2026
 
 - El porcentaje central se calcula del precio 6E recibido frente a la apertura de la barra actual del mismo gráfico NinjaTrader. Verde indica precio por encima; rojo, por debajo; neutro, igual. El balance FX 0–100 permanece separado.

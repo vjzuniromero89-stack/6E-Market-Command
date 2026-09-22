@@ -32,8 +32,11 @@ test('rejects non-futures symbols, old data and impossible prices', () => {
 test('only fresh quotes reveal a price; stale or missing data cannot look live', () => {
   const snapshot = validateIntermarketSnapshot(fixture(), at);
   assert.equal(presentIntermarket(snapshot, 'GC', at + 10_000).price, 4400);
+  assert.equal(presentIntermarket(snapshot, 'GC', at + 10_000).open, 4399);
+  assert.equal(presentIntermarket(snapshot, 'GC', at + 10_000).barTimeUtc, snapshot.barTimeUtc);
   assert.equal(presentIntermarket(snapshot, 'GC', at + INTERMARKET_LIVE_MS).status, 'stale');
   assert.equal(presentIntermarket(snapshot, 'GC', at + INTERMARKET_LIVE_MS).price, null);
+  assert.equal(presentIntermarket(snapshot, 'GC', at + INTERMARKET_LIVE_MS).open, null);
   assert.equal(presentIntermarket(snapshot, 'CL', at).status, 'unavailable');
   assert.equal(presentIntermarket(null, 'GC', at).status, 'unavailable');
 });
